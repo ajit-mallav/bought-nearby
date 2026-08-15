@@ -1296,7 +1296,7 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: "100%",
-    maxWidth: 720,
+    maxWidth: 600,
     backgroundColor: colors.background,
   },
   topBar: {
