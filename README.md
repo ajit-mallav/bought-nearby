@@ -11,13 +11,13 @@ An iPhone-first Expo app prototype for discovering local NYC purchases through p
 - **Profile shelves** with top 10 per category and a lifetime “worth it” list.
 - **Search** across your purchases, friend activity, and local stores.
 - **Nearby map** with seeded NYC stores, category filters, distance sorting, optional location permission, and directions links.
-- **Local persistence** using device/browser storage, plus a reset-demo-data action.
+- **Supabase persistence** with per-user row-level security and local offline fallback.
 
 ## Tech stack
 
 - Expo + React Native + TypeScript
 - React Native Web for the browser demo
-- AsyncStorage for local persistence
+- Supabase for cloud persistence and AsyncStorage for offline fallback
 - Expo Image Picker and Location for native/device capabilities
 
 ## Run locally
@@ -26,6 +26,15 @@ An iPhone-first Expo app prototype for discovering local NYC purchases through p
 pnpm install
 pnpm web
 ```
+
+## Supabase setup
+
+1. Create a Supabase project and enable **Anonymous Sign-Ins** under Authentication → Providers.
+2. Run `supabase/schema.sql` in the Supabase SQL editor.
+3. Copy `.env.example` to `.env` and add the project URL and anon key from Project Settings → API.
+4. Restart Expo after changing environment variables.
+
+The anon key is intended for client apps. Row-level security ensures each anonymous or signed-in user can only access their own saved app state. Without environment variables, the app continues to work using AsyncStorage only.
 
 The web demo opens through Expo. For iPhone, install Expo Go, then run:
 
