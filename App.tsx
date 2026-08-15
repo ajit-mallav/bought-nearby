@@ -422,8 +422,7 @@ function BoughtNearbyApp() {
     return (
       <View style={styles.homeScreen}>
         <View style={styles.homeTopRow}>
-          <Text style={styles.homeBrandText}>NearBuy</Text>
-          <Image source={require("./assets/icon-mark.png")} style={styles.homeLogoMark} resizeMode="contain" />
+          <Image source={require("./assets/logo-horizontal.png")} style={styles.homeLogoHorizontal} resizeMode="contain" />
         </View>
 
         <Pressable
@@ -1399,15 +1398,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
   },
-  homeBrandText: {
-    color: feedColors.ink,
-    fontSize: 26,
-    fontWeight: "900",
-    letterSpacing: -0.6,
-  },
-  homeLogoMark: {
-    height: 48,
-    aspectRatio: 321 / 388,
+  homeLogoHorizontal: {
+    height: 44,
+    aspectRatio: 1023 / 343,
   },
   featuredSection: {
     gap: 10,
