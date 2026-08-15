@@ -124,6 +124,16 @@ function BoughtNearbyApp() {
   const [userLocation, setUserLocation] = useState(DEFAULT_LOCATION);
   const [locationMessage, setLocationMessage] = useState("Showing a demo starting point in Union Square.");
   const [selectedShop, setSelectedShop] = useState<Store | null>(null);
+  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
+
+  function toggleLike(id: string) {
+    setLikedPostIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -192,6 +202,7 @@ function BoughtNearbyApp() {
         id: `you-${purchase.id}`,
         actor: "You",
         avatar: "Y",
+        avatarUri: "https://i.pravatar.cc/150?img=68",
         itemName: purchase.itemName,
         category: purchase.category,
         storeName: purchase.storeName,
@@ -200,6 +211,7 @@ function BoughtNearbyApp() {
         createdAt: purchase.createdAt,
       };
       if (purchase.photoUri) event.photoUri = purchase.photoUri;
+      if (purchase.notes) event.notes = purchase.notes;
       if (typeof purchase.isLocalStore === "boolean") event.isLocalStore = purchase.isLocalStore;
       events.push(event);
     }
@@ -399,25 +411,51 @@ function BoughtNearbyApp() {
   }
 
   function renderFeed() {
+    const underThreeDollars = [...stores]
+      .filter((store) => store.priceTier <= 3)
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 10);
+    const mostPopular = [...stores].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 10);
+    const thriftStores = [...stores].filter((store) => store.isThrift).sort((a, b) => b.rating - a.rating).slice(0, 10);
+
     return (
       <View style={styles.homeScreen}>
-        <View style={styles.homeHeader}>
-          <BrandMark size="large" />
-          <Pressable
-            style={styles.homeSearchBar}
-            onPress={() => {
-              setSearchTerm("");
-              setSelectedTab("search");
-            }}
-          >
-            <Ionicons name="search-outline" size={20} color={colors.muted} />
-            <Text style={styles.homeSearchText}>Search items, stores, friends...</Text>
-          </Pressable>
+        <View style={styles.homeTopRow}>
+          <View style={styles.brandChip}>
+            <Text style={[styles.brandText, styles.brandTextLarge]}>
+              <Text style={styles.brandNear}>Near</Text>
+              <Text style={styles.brandBuy}>Buy</Text>
+            </Text>
+          </View>
+          <Image source={require("./assets/logo.png")} style={styles.homeLogoImage} resizeMode="contain" />
         </View>
 
-        <SectionHeader title="Feed" action="Friends + recent buys" />
+        <Pressable
+          style={styles.homeSearchBar}
+          onPress={() => {
+            setSearchTerm("");
+            setSelectedTab("search");
+          }}
+        >
+          <Ionicons name="search-outline" size={20} color={colors.muted} />
+          <Text style={styles.homeSearchText}>Search for a store, member, or item</Text>
+        </Pressable>
+
+        <FeaturedRow title="Under $$$" stores={underThreeDollars} onSelect={setSelectedShop} />
+        <FeaturedRow title="Most popular" stores={mostPopular} onSelect={setSelectedShop} />
+        <FeaturedRow title="Top thrift stores" stores={thriftStores} onSelect={setSelectedShop} />
+
+        <SectionHeader title="Your Feed" action={`${feedEvents.length} posts`} />
         {feedEvents.map((event) => (
-          <FeedCard key={event.id} event={event} onPress={() => openStoreByName(event.storeName)} />
+          <FeedPostCard
+            key={event.id}
+            event={event}
+            liked={likedPostIds.has(event.id)}
+            onToggleLike={() => toggleLike(event.id)}
+            onPressStore={() => openStoreByName(event.storeName)}
+            onComment={() => showToast("Comments are coming soon.")}
+            onSend={() => showToast(`Send "${event.itemName}" to a friend — coming soon.`)}
+          />
         ))}
       </View>
     );
@@ -978,6 +1016,103 @@ function BrandMark({ size = "default" }: { size?: "default" | "large" }) {
   );
 }
 
+function FeaturedRow({ title, stores: featuredStores, onSelect }: { title: string; stores: Store[]; onSelect: (store: Store) => void }) {
+  if (featuredStores.length === 0) return null;
+  return (
+    <View style={styles.featuredSection}>
+      <Text style={styles.featuredTitle}>{title}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
+        {featuredStores.map((store) => (
+          <Pressable key={store.id} style={styles.featuredCard} onPress={() => onSelect(store)}>
+            <Image source={{ uri: store.photoUri }} style={styles.featuredImage} resizeMode="cover" />
+            <Text style={styles.featuredCardName} numberOfLines={1}>{store.name}</Text>
+            <View style={styles.featuredCardMeta}>
+              <Text style={styles.featuredPrice}>{"$".repeat(store.priceTier)}</Text>
+              <View style={styles.featuredRatingRow}>
+                <Ionicons name="star" size={11} color={colors.accent} />
+                <Text style={styles.featuredRatingText}>{store.rating.toFixed(1)}</Text>
+              </View>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function ratingColorFor(score: number) {
+  if (score >= 7) return colors.ratingGood;
+  if (score >= 4) return colors.ratingMid;
+  return colors.ratingBad;
+}
+
+function FeedPostCard({
+  event,
+  liked,
+  onToggleLike,
+  onPressStore,
+  onComment,
+  onSend,
+}: {
+  event: FeedEvent;
+  liked: boolean;
+  onToggleLike: () => void;
+  onPressStore: () => void;
+  onComment: () => void;
+  onSend: () => void;
+}) {
+  const store = stores.find((candidate) => candidate.name.toLowerCase() === event.storeName.toLowerCase());
+  const location = store ? `${store.borough}, NY` : undefined;
+  const gallery = [event.photoUri, ...(store?.galleryPhotos ?? [])]
+    .filter((uri): uri is string => !!uri)
+    .filter((uri, index, all) => all.indexOf(uri) === index)
+    .slice(0, 3);
+
+  return (
+    <View style={styles.postCard}>
+      <View style={styles.postHeaderRow}>
+        <Image source={{ uri: event.avatarUri }} style={styles.postAvatar} />
+        <View style={styles.postHeaderText}>
+          <Text style={styles.postActorLine}>
+            <Text style={styles.postActor}>{event.actor}</Text> ranked {event.itemName} #{event.rank}
+          </Text>
+          <Pressable onPress={onPressStore}>
+            <Text style={styles.postLocation}>
+              {event.storeName}
+              {location ? ` • ${location}` : ""}
+            </Text>
+          </Pressable>
+        </View>
+        <Text style={[styles.postRating, { color: ratingColorFor(event.score) }]}>{event.score.toFixed(1)}</Text>
+      </View>
+
+      {gallery.length > 0 && (
+        <View style={styles.postGallery}>
+          {gallery.map((uri, index) => (
+            <Image key={`${event.id}-${index}`} source={{ uri }} style={styles.postGalleryImage} resizeMode="cover" />
+          ))}
+        </View>
+      )}
+
+      {!!event.notes && <Text style={styles.postNotes}>{event.notes}</Text>}
+
+      <View style={styles.postActionsRow}>
+        <Pressable style={styles.postActionButton} onPress={onToggleLike}>
+          <Ionicons name={liked ? "heart" : "heart-outline"} size={20} color={liked ? colors.ratingBad : colors.muted} />
+        </Pressable>
+        <Pressable style={styles.postActionButton} onPress={onComment}>
+          <Ionicons name="chatbubble-outline" size={19} color={colors.muted} />
+        </Pressable>
+        <Pressable style={styles.postActionButton} onPress={onSend}>
+          <Ionicons name="paper-plane-outline" size={19} color={colors.muted} />
+        </Pressable>
+      </View>
+
+      <Text style={styles.postTimestamp}>{timeAgo(event.createdAt)}</Text>
+    </View>
+  );
+}
+
 function CategoryPicker({
   selected,
   onSelect,
@@ -1241,6 +1376,135 @@ const styles = StyleSheet.create({
   homeSearchText: {
     color: colors.muted,
     fontSize: 16,
+    fontWeight: "700",
+  },
+  homeTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  homeLogoImage: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+  },
+  featuredSection: {
+    gap: 10,
+  },
+  featuredTitle: {
+    color: colors.ink,
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: -0.2,
+  },
+  featuredRow: {
+    gap: 12,
+    paddingRight: 4,
+  },
+  featuredCard: {
+    width: 140,
+    gap: 4,
+  },
+  featuredImage: {
+    width: 140,
+    height: 100,
+    borderRadius: 16,
+    backgroundColor: colors.soft,
+  },
+  featuredCardName: {
+    color: colors.ink,
+    fontWeight: "900",
+    fontSize: 13,
+    marginTop: 4,
+  },
+  featuredCardMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  featuredPrice: {
+    color: colors.accentDark,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  featuredRatingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  featuredRatingText: {
+    color: colors.muted,
+    fontWeight: "800",
+    fontSize: 12,
+  },
+  postCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 24,
+    padding: 14,
+    gap: 10,
+  },
+  postHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  postAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.soft,
+  },
+  postHeaderText: {
+    flex: 1,
+    gap: 2,
+  },
+  postActorLine: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 19,
+  },
+  postActor: {
+    fontWeight: "900",
+  },
+  postLocation: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  postRating: {
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  postGallery: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  postGalleryImage: {
+    flex: 1,
+    height: 110,
+    borderRadius: 14,
+    backgroundColor: colors.soft,
+  },
+  postNotes: {
+    color: colors.ink,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "600",
+  },
+  postActionsRow: {
+    flexDirection: "row",
+    gap: 18,
+  },
+  postActionButton: {
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+  },
+  postTimestamp: {
+    color: colors.muted,
+    fontSize: 11,
     fontWeight: "700",
   },
   heroCard: {

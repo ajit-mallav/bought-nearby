@@ -43,12 +43,17 @@ export type Store = {
   link?: string;
   rating: number;
   photoUri: string;
+  priceTier: 1 | 2 | 3 | 4;
+  reviewCount: number;
+  isThrift: boolean;
+  galleryPhotos: string[];
 };
 
 export type FeedEvent = {
   id: string;
   actor: string;
   avatar: string;
+  avatarUri: string;
   itemName: string;
   category: Category;
   storeName: string;
@@ -56,6 +61,7 @@ export type FeedEvent = {
   score: number;
   createdAt: string;
   photoUri?: string;
+  notes?: string;
   isLocalStore?: boolean;
 };
 

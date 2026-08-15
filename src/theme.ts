@@ -13,6 +13,9 @@ export const colors = {
   green: "#1F7A4D",
   greenSoft: "#E7F2E9",
   yellow: "#EFD37A",
+  ratingGood: "#1F7A4D",
+  ratingMid: "#B8860B",
+  ratingBad: "#D64545",
 };
 
 export const fonts = {
