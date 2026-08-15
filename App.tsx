@@ -1,4 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+  Inter_900Black,
+  useFonts,
+} from "@expo-google-fonts/inter";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
@@ -14,15 +23,16 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
+  Text as NativeText,
   TextInput,
+  type TextProps,
   View,
 } from "react-native";
 
 import NycMap from "./src/components/NycMap";
 import { loadDatabaseState, saveDatabaseState } from "./src/data/database";
 import { CATEGORIES, CATEGORY_EMOJI, friendFeed, starterPurchases, starterRankings, starterWants, stores } from "./src/data/seed";
-import { colors } from "./src/theme";
+import { colors, fonts } from "./src/theme";
 import { Category, ComparisonSession, FeedEvent, Purchase, Store, WantedItem } from "./src/types";
 import { distanceMiles } from "./src/utils/geo";
 import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizePurchases, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
@@ -60,7 +70,46 @@ const emptyDraft = (): DraftPurchase => ({
   notes: "",
 });
 
+const appFonts = {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+  Inter_900Black,
+};
+
+function fontFamilyForWeight(weight: unknown) {
+  if (weight === "bold") return fonts.bold;
+  const numericWeight = typeof weight === "number" ? weight : Number(String(weight ?? "400").replace(/[^0-9]/g, ""));
+  if (numericWeight >= 900) return fonts.black;
+  if (numericWeight >= 800) return fonts.extraBold;
+  if (numericWeight >= 700) return fonts.bold;
+  if (numericWeight >= 600) return fonts.semiBold;
+  if (numericWeight >= 500) return fonts.medium;
+  return fonts.regular;
+}
+
+function Text({ style, ...props }: TextProps) {
+  const flattenedStyle = StyleSheet.flatten(style);
+  return <NativeText {...props} style={[styles.appText, style, { fontFamily: fontFamilyForWeight(flattenedStyle?.fontWeight) }]} />;
+}
+
 export default function App() {
+  const [fontsLoaded] = useFonts(appFonts);
+
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+      </SafeAreaView>
+    );
+  }
+
+  return <BoughtNearbyApp />;
+}
+
+function BoughtNearbyApp() {
   const [selectedTab, setSelectedTab] = useState<TabKey>("feed");
   const [purchases, setPurchases] = useState<Purchase[]>(starterPurchases);
   const [rankings, setRankings] = useState(starterRankings);
@@ -1097,6 +1146,10 @@ function timeAgo(iso: string) {
 }
 
 const styles = StyleSheet.create({
+  appText: {
+    fontFamily: fonts.regular,
+    color: colors.ink,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1524,6 +1577,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
     color: colors.ink,
+    fontFamily: fonts.semiBold,
     fontWeight: "700",
     fontSize: 15,
   },
@@ -1542,6 +1596,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 14,
     color: colors.ink,
+    fontFamily: fonts.bold,
     fontWeight: "800",
     fontSize: 16,
   },
