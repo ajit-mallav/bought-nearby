@@ -900,37 +900,41 @@ export default function App() {
               <>
                 <View style={styles.compareHandle} />
                 <Text style={styles.cardKicker}>Rank {CATEGORY_EMOJI[comparison.category]} {comparison.category}</Text>
-                <Text style={styles.compareTitle}>Was this better than your {currentComparisonItem.itemName}?</Text>
+                <Text style={styles.compareTitle}>Which item would you rather have?</Text>
                 <Text style={styles.compareSubtitle}>
-                  Comparison {comparison.comparisons + 1}. Your answer narrows the shelf using binary insertion.
+                  Tap the item you prefer. Comparison {comparison.comparisons + 1} narrows the shelf using binary insertion.
                 </Text>
 
                 <View style={styles.compareItemsRow}>
-                  <View style={styles.compareItemCard}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Choose ${newComparisonItem.itemName}`}
+                    style={({ pressed }) => [styles.compareItemCard, styles.compareItemCardPressable, pressed && styles.compareItemCardPressed]}
+                    onPress={() => answerComparison(true)}
+                  >
                     <Text style={styles.compareLabel}>New</Text>
                     <PhotoPreview uri={newComparisonItem.photoUri} category={newComparisonItem.category} size="medium" />
                     <Text style={styles.compareItemTitle}>{newComparisonItem.itemName}</Text>
                     <Text style={styles.compareStore}>{newComparisonItem.storeName}</Text>
-                  </View>
+                    <Text style={styles.compareTapHint}>Tap to rank higher</Text>
+                  </Pressable>
                   <View style={styles.compareVersus}>
                     <Text style={styles.compareVersusText}>vs</Text>
                   </View>
-                  <View style={styles.compareItemCard}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Choose ${currentComparisonItem.itemName}`}
+                    style={({ pressed }) => [styles.compareItemCard, styles.compareItemCardPressable, pressed && styles.compareItemCardPressed]}
+                    onPress={() => answerComparison(false)}
+                  >
                     <Text style={styles.compareLabel}>Current #{comparison.mid + 1}</Text>
                     <PhotoPreview uri={currentComparisonItem.photoUri} category={currentComparisonItem.category} size="medium" />
                     <Text style={styles.compareItemTitle}>{currentComparisonItem.itemName}</Text>
                     <Text style={styles.compareStore}>{currentComparisonItem.storeName}</Text>
-                  </View>
+                    <Text style={styles.compareTapHint}>Tap to keep higher</Text>
+                  </Pressable>
                 </View>
 
-                <Pressable style={styles.primaryButton} onPress={() => answerComparison(true)}>
-                  <Ionicons name="thumbs-up-outline" size={18} color="white" />
-                  <Text style={styles.primaryButtonText}>Yes, rank it higher</Text>
-                </Pressable>
-                <Pressable style={styles.secondaryButtonWide} onPress={() => answerComparison(false)}>
-                  <Ionicons name="thumbs-down-outline" size={18} color={colors.ink} />
-                  <Text style={styles.secondaryButtonText}>No, keep it lower</Text>
-                </Pressable>
                 <Pressable style={styles.skipButton} onPress={skipComparisonToBottom}>
                   <Text style={styles.skipButtonText}>Skip and place at bottom</Text>
                 </Pressable>
@@ -2049,6 +2053,19 @@ const styles = StyleSheet.create({
     gap: 7,
     alignItems: "center",
   },
+  compareItemCardPressable: {
+    borderWidth: 2,
+    borderColor: colors.border,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 5 },
+  },
+  compareItemCardPressed: {
+    borderColor: colors.accent,
+    backgroundColor: colors.greenSoft,
+    transform: [{ scale: 0.98 }],
+  },
   compareLabel: {
     color: colors.accent,
     fontSize: 11,
@@ -2065,6 +2082,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     textAlign: "center",
+  },
+  compareTapHint: {
+    color: colors.accentDark,
+    backgroundColor: colors.greenSoft,
+    borderRadius: 999,
+    overflow: "hidden",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    fontSize: 11,
+    fontWeight: "900",
+    marginTop: 2,
   },
   compareVersus: {
     justifyContent: "center",
