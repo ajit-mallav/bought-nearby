@@ -11,25 +11,25 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@expo/metro-runtime": "^57.0.8",
+    "@expo/metro-runtime": "^57.0.10",
     "@expo/vector-icons": "latest",
-    "@react-native-async-storage/async-storage": "latest",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.112.3",
     "expo": "latest",
     "expo-image-picker": "latest",
     "expo-location": "latest",
     "expo-status-bar": "latest",
     "leaflet": "latest",
-    "react": "latest",
-    "react-dom": "latest",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-leaflet": "latest",
-    "react-native": "latest",
+    "react-native": "0.86.2",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-web": "latest"
   },
   "devDependencies": {
     "@types/leaflet": "latest",
     "@types/react": "latest",
-    "typescript": "latest"
+    "typescript": "~6.0.3"
   }
 }

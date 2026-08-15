@@ -25,7 +25,7 @@ import { CATEGORIES, CATEGORY_EMOJI, friendFeed, starterPurchases, starterRankin
 import { colors } from "./src/theme";
 import { Category, ComparisonSession, FeedEvent, Purchase, Store } from "./src/types";
 import { distanceMiles } from "./src/utils/geo";
-import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
+import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizePurchases, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
 
 const STORAGE_KEY = "@bought-nearby:v1";
 const DEFAULT_LOCATION = { lat: 40.7359, lng: -73.9911, label: "Union Square demo location" };
@@ -87,8 +87,9 @@ export default function App() {
         const savedState = databaseState ?? localState;
 
         if (savedState?.purchases && savedState.rankings) {
-          setPurchases(savedState.purchases);
-          setRankings(sanitizeRankings(savedState.purchases, savedState.rankings));
+          const cleanedPurchases = sanitizePurchases(savedState.purchases);
+          setPurchases(cleanedPurchases);
+          setRankings(sanitizeRankings(cleanedPurchases, savedState.rankings));
         }
 
         if (!databaseState && localState?.purchases && localState.rankings) {

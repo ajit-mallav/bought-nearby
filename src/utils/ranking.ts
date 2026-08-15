@@ -8,14 +8,21 @@ export function scoreForRank(index: number, total: number): number {
 }
 
 export function rankOf(purchaseId: string, category: Category, rankings: RankingMap): number | undefined {
-  const index = rankings[category].indexOf(purchaseId);
+  const index = rankings[category]?.indexOf(purchaseId) ?? -1;
   return index >= 0 ? index + 1 : undefined;
 }
 
 export function scoreOf(purchaseId: string, category: Category, rankings: RankingMap): number | undefined {
-  const index = rankings[category].indexOf(purchaseId);
+  const list = rankings[category];
+  if (!list) return undefined;
+  const index = list.indexOf(purchaseId);
   if (index < 0) return undefined;
-  return scoreForRank(index, rankings[category].length);
+  return scoreForRank(index, list.length);
+}
+
+export function sanitizePurchases(purchases: Purchase[]): Purchase[] {
+  const known = new Set<Category>(CATEGORIES);
+  return purchases.filter((purchase) => known.has(purchase.category));
 }
 
 export function rankedPurchasesForCategory(
