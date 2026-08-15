@@ -62,6 +62,21 @@ const tabs: { key: TabKey; label: string; icon: string }[] = [
   { key: "profile", label: "Me", icon: "person-circle-outline" },
 ];
 
+function currentStreakWeeks(purchases: Purchase[]): number {
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  let streak = 0;
+  while (
+    purchases.some((purchase) => {
+      const age = now - new Date(purchase.createdAt).getTime();
+      return age >= streak * weekMs && age < (streak + 1) * weekMs;
+    })
+  ) {
+    streak += 1;
+  }
+  return streak;
+}
+
 const emptyDraft = (): DraftPurchase => ({
   mode: "bought",
   itemName: "",
@@ -965,18 +980,114 @@ function BoughtNearbyApp() {
   }
 
   function renderProfile() {
+    const streakWeeks = currentStreakWeeks(purchases);
     return (
       <View style={styles.screen}>
-        <View style={styles.profileCard}>
-          <View style={styles.avatarLarge}>
-            <Text style={styles.avatarLargeText}>Y</Text>
+        <View style={styles.profileTopBar}>
+          <Text style={styles.profileName}>Tej Chakravarthy</Text>
+          <View style={styles.profileTopActions}>
+            <Pressable onPress={() => showToast("Profile link copied.")} hitSlop={8}>
+              <Ionicons name="share-outline" size={24} color={colors.ink} />
+            </Pressable>
+            <Pressable onPress={() => showToast("Settings coming soon.")} hitSlop={8}>
+              <Ionicons name="menu-outline" size={28} color={colors.ink} />
+            </Pressable>
           </View>
-          <Text style={styles.profileTitle}>Your ranked shelves</Text>
-          <Text style={styles.profileSubtitle}>Scores are derived from rank position — no manual 0–10 entry needed.</Text>
-          <View style={styles.statRow}>
-            <StatCard icon="bag-handle-outline" label="Purchases" value={String(purchases.length)} />
-            <StatCard icon="trophy-outline" label="Ranked" value={String(rankedCount)} />
-            <StatCard icon="bookmark-outline" label="Wants" value={String(wants.length)} />
+        </View>
+
+        <View style={styles.profileIdentity}>
+          <View style={styles.profileAvatar}>
+            <Text style={styles.profileAvatarText}>T</Text>
+          </View>
+          <Text style={styles.profileHandle}>@Tejchak</Text>
+          <Text style={styles.profileMemberSince}>Member since August 2025</Text>
+          <Pressable onPress={() => showToast("Neighborhoods coming soon.")}>
+            <Text style={styles.profileAddLink}>+ Add Neighborhood</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.profileStatsRow}>
+          <View style={styles.profileStat}>
+            <Text style={styles.profileStatValue}>15</Text>
+            <Text style={styles.profileStatLabel}>Followers</Text>
+          </View>
+          <View style={styles.profileStat}>
+            <Text style={styles.profileStatValue}>9</Text>
+            <Text style={styles.profileStatLabel}>Following</Text>
+          </View>
+          <View style={styles.profileStat}>
+            <Ionicons name="lock-closed" size={16} color={colors.ink} />
+            <Text style={styles.profileStatLabel}>Rank Nearby</Text>
+          </View>
+        </View>
+
+        <View style={styles.profileButtonRow}>
+          <Pressable style={styles.profilePillButton} onPress={() => showToast("Edit profile coming soon.")}>
+            <Text style={styles.profilePillButtonText}>Edit profile</Text>
+          </Pressable>
+          <Pressable style={styles.profilePillButton} onPress={() => showToast("Profile link copied.")}>
+            <Text style={styles.profilePillButtonText}>Share profile</Text>
+          </Pressable>
+          <Pressable style={styles.profilePillSmall} onPress={() => showToast("More options coming soon.")}>
+            <Ionicons name="caret-down" size={14} color={colors.ink} />
+          </Pressable>
+        </View>
+
+        <View style={styles.profileListGroup}>
+          <View style={styles.profileListRow}>
+            <Ionicons name="checkmark-circle-outline" size={26} color={colors.ink} />
+            <Text style={styles.profileListLabel}>Bought</Text>
+            <Text style={styles.profileListCount}>{purchases.length}</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </View>
+          <View style={styles.profileListDivider} />
+          <View style={styles.profileListRow}>
+            <Ionicons name="bookmark" size={23} color={colors.ink} />
+            <Text style={styles.profileListLabel}>Want to Buy</Text>
+            <Text style={styles.profileListCount}>{wants.length}</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </View>
+          <View style={styles.profileListDivider} />
+          <View style={styles.profileListRow}>
+            <Ionicons name="heart-circle-outline" size={26} color={colors.ink} />
+            <Text style={styles.profileListLabel}>Recs for You</Text>
+            <Ionicons name="lock-closed" size={17} color={colors.muted} />
+          </View>
+        </View>
+
+        <View style={styles.profileCardRow}>
+          <View style={styles.profileWideCard}>
+            <Ionicons name="trophy-outline" size={26} color={colors.accentDark} />
+            <View>
+              <Text style={styles.profileWideCardLabel}>Rank Nearby</Text>
+              <Ionicons name="lock-closed" size={15} color={colors.accentDark} />
+            </View>
+          </View>
+          <View style={styles.profileWideCard}>
+            <Ionicons name="flame" size={26} color={colors.accentDark} />
+            <View>
+              <Text style={styles.profileWideCardLabel}>Current Streak</Text>
+              <Text style={styles.profileWideCardValue}>{streakWeeks} week{streakWeeks === 1 ? "" : "s"}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.profileGoalCard}>
+          <View style={styles.profileGoalHeader}>
+            <View style={styles.flexOne}>
+              <Text style={styles.profileGoalTitle}>Set your 2026 goal</Text>
+              <Text style={styles.profileGoalBody}>
+                You bought from {new Set(purchases.map((purchase) => purchase.storeName)).size} shops in 2025!{"\n"}How many local finds do you want in 2026?
+              </Text>
+            </View>
+            <Text style={styles.profileGoalEmoji}>🏆</Text>
+          </View>
+          <View style={styles.profileGoalPillRow}>
+            {["20", "50", "100", "Customize"].map((goal) => (
+              <Pressable key={goal} style={styles.profileGoalPill} onPress={() => showToast(goal === "Customize" ? "Custom goals coming soon." : `2026 goal set: ${goal} local finds.`)}>
+                <Text style={styles.profileGoalPillText}>{goal}</Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
@@ -1037,7 +1148,7 @@ function BoughtNearbyApp() {
       <StatusBar style="dark" />
       <View style={styles.outerShell}>
         <View style={styles.appShell}>
-          {(selectedShop || selectedTab !== "feed") && (
+          {(selectedShop || (selectedTab !== "feed" && selectedTab !== "profile")) && (
             <View style={styles.topBar}>
               {selectedShop ? (
                 <Pressable style={styles.backRow} onPress={() => setSelectedShop(null)}>
@@ -2326,38 +2437,201 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
   },
-  profileCard: {
+  profileTopBar: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.ink,
-    borderRadius: 30,
-    padding: 22,
-    gap: 13,
+    justifyContent: "space-between",
+    paddingTop: 4,
   },
-  avatarLarge: {
-    width: 74,
-    height: 74,
-    borderRadius: 28,
+  profileName: {
+    color: colors.ink,
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  profileTopActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  profileIdentity: {
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  profileAvatar: {
+    width: 118,
+    height: 118,
+    borderRadius: 59,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 4,
-    borderColor: "rgba(255,255,255,0.24)",
+    marginBottom: 8,
   },
-  avatarLargeText: {
+  profileAvatarText: {
     color: "white",
-    fontSize: 28,
+    fontSize: 46,
     fontWeight: "900",
   },
-  profileTitle: {
-    color: "white",
-    fontSize: 27,
-    fontWeight: "900",
-    letterSpacing: -0.7,
+  profileHandle: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: "800",
   },
-  profileSubtitle: {
-    color: colors.soft,
-    textAlign: "center",
-    lineHeight: 20,
+  profileMemberSince: {
+    color: colors.muted,
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  profileAddLink: {
+    color: colors.accentDark,
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  profileStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    alignItems: "flex-end",
+    marginTop: 6,
+  },
+  profileStat: {
+    alignItems: "center",
+    gap: 2,
+    minWidth: 90,
+  },
+  profileStatValue: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  profileStatLabel: {
+    color: colors.muted,
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  profileButtonRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
+  profilePillButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingVertical: 11,
+    alignItems: "center",
+  },
+  profilePillButtonText: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  profilePillSmall: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileListGroup: {
+    marginTop: 6,
+  },
+  profileListRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 15,
+  },
+  profileListLabel: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  profileListCount: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  profileListDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  profileCardRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+  },
+  profileWideCard: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+  },
+  profileWideCardLabel: {
+    color: colors.accentDark,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  profileWideCardValue: {
+    color: colors.accentDark,
+    fontSize: 19,
+    fontWeight: "900",
+  },
+  profileGoalCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: 16,
+    gap: 12,
+  },
+  profileGoalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  profileGoalTitle: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  profileGoalBody: {
+    color: colors.ink,
+    fontSize: 15,
+    lineHeight: 21,
+    marginTop: 4,
+  },
+  profileGoalEmoji: {
+    fontSize: 40,
+  },
+  profileGoalPillRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  profileGoalPill: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    alignItems: "center",
+  },
+  profileGoalPillText: {
+    color: colors.ink,
+    fontSize: 15,
     fontWeight: "600",
   },
   shelfCard: {
