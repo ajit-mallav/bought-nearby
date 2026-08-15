@@ -402,7 +402,7 @@ function BoughtNearbyApp() {
     return (
       <View style={styles.homeScreen}>
         <View style={styles.homeHeader}>
-          <Text style={styles.homeTitle}>Bought Nearby</Text>
+          <BrandMark size="large" />
           <Pressable
             style={styles.homeSearchBar}
             onPress={() => {
@@ -866,13 +866,10 @@ function BoughtNearbyApp() {
                 </Pressable>
               ) : (
                 <View>
-                  <Text style={styles.appName}>Bought Nearby</Text>
+                  <BrandMark />
                   <Text style={styles.appContext}>{activeTab.label}</Text>
                 </View>
               )}
-              <View style={styles.logoMark}>
-                <Ionicons name="bag-handle" size={23} color="white" />
-              </View>
             </View>
           )}
 
@@ -963,6 +960,21 @@ function BoughtNearbyApp() {
         </View>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+function BrandMark({ size = "default" }: { size?: "default" | "large" }) {
+  const isLarge = size === "large";
+  return (
+    <View style={styles.brandRow}>
+      <Image source={require("./assets/logo.png")} style={isLarge ? styles.brandLogoLarge : styles.brandLogo} resizeMode="contain" />
+      <View style={styles.brandChip}>
+        <Text style={[styles.brandText, isLarge && styles.brandTextLarge]}>
+          <Text style={styles.brandNear}>Near</Text>
+          <Text style={styles.brandBuy}>Buy</Text>
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -1143,11 +1155,40 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  appName: {
-    color: colors.ink,
-    fontSize: 25,
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  brandLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+  },
+  brandLogoLarge: {
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+  },
+  brandChip: {
+    backgroundColor: colors.ink,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  brandText: {
+    fontSize: 16,
     fontWeight: "900",
-    letterSpacing: -0.6,
+    letterSpacing: -0.3,
+  },
+  brandTextLarge: {
+    fontSize: 24,
+  },
+  brandNear: {
+    color: "white",
+  },
+  brandBuy: {
+    color: colors.accent,
   },
   appContext: {
     color: colors.muted,
@@ -1169,18 +1210,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  logoMark: {
-    width: 46,
-    height: 46,
-    borderRadius: 18,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.accent,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-  },
   content: {
     flex: 1,
   },
@@ -1197,13 +1226,6 @@ const styles = StyleSheet.create({
   },
   homeHeader: {
     gap: 14,
-  },
-  homeTitle: {
-    color: colors.ink,
-    fontSize: 34,
-    lineHeight: 38,
-    fontWeight: "900",
-    letterSpacing: -1.2,
   },
   homeSearchBar: {
     flexDirection: "row",

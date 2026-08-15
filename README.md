@@ -1,4 +1,4 @@
-# Bought Nearby
+# NearBuy
 
 An iPhone-first Expo app prototype for discovering local NYC clothing purchases through personal ranked shelves. Think Beli, but for clothes people buy nearby.
 
