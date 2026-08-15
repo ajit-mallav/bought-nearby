@@ -1277,7 +1277,7 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: "100%",
-    maxWidth: 520,
+    maxWidth: 600,
     backgroundColor: colors.background,
   },
   topBar: {
@@ -1387,7 +1387,7 @@ const styles = StyleSheet.create({
   },
   homeLogoMark: {
     height: 48,
-    aspectRatio: 338 / 386,
+    aspectRatio: 321 / 388,
   },
   featuredSection: {
     gap: 10,
