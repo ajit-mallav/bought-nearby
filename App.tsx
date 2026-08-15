@@ -400,54 +400,22 @@ function BoughtNearbyApp() {
 
   function renderFeed() {
     return (
-      <View style={styles.screen}>
-        <View style={styles.heroCard}>
-          <View style={styles.heroTopRow}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="people-outline" size={18} color={colors.ink} />
-              <Text style={styles.heroBadgeText}>Beli for shopping</Text>
-            </View>
-            <View style={styles.matchScoreBadge}>
-              <Text style={styles.matchScoreValue}>92%</Text>
-              <Text style={styles.matchScoreLabel}>match</Text>
-            </View>
-          </View>
-          <Text style={styles.heroTitle}>Rank what you bought. Save what you want.</Text>
-          <Text style={styles.heroSubtitle}>
-            A friend-powered shopping list, map, and ranked closet for NYC clothing finds.
-          </Text>
-          <View style={styles.beliPathRow}>
-            <View style={styles.beliPathStep}>
-              <Text style={styles.beliPathNumber}>1</Text>
-              <Text style={styles.beliPathLabel}>Bought</Text>
-            </View>
-            <View style={styles.beliPathStep}>
-              <Text style={styles.beliPathNumber}>2</Text>
-              <Text style={styles.beliPathLabel}>Compare</Text>
-            </View>
-            <View style={styles.beliPathStep}>
-              <Text style={styles.beliPathNumber}>3</Text>
-              <Text style={styles.beliPathLabel}>Discover</Text>
-            </View>
-          </View>
-          <View style={styles.statRow}>
-            <StatCard icon="trophy-outline" label="Ranked" value={String(rankedCount)} />
-            <StatCard icon="bookmark-outline" label="Wants" value={String(wants.length)} />
-            <StatCard icon="storefront-outline" label="Stores" value={String(stores.length)} />
-          </View>
-          <View style={styles.homeActionRow}>
-            <Pressable style={[styles.primaryButton, styles.homeActionButton]} onPress={() => { setDraft({ ...emptyDraft(), mode: "bought" }); setSelectedTab("add"); }}>
-              <Ionicons name="checkmark-circle-outline" size={19} color="white" />
-              <Text style={styles.primaryButtonText}>Bought</Text>
-            </Pressable>
-            <Pressable style={[styles.secondaryButtonWide, styles.homeActionButton]} onPress={() => { setDraft({ ...emptyDraft(), mode: "want" }); setSelectedTab("add"); }}>
-              <Ionicons name="bookmark-outline" size={19} color={colors.ink} />
-              <Text style={styles.secondaryButtonText}>Want</Text>
-            </Pressable>
-          </View>
+      <View style={styles.homeScreen}>
+        <View style={styles.homeHeader}>
+          <Text style={styles.homeTitle}>Bought Nearby</Text>
+          <Pressable
+            style={styles.homeSearchBar}
+            onPress={() => {
+              setSearchTerm("");
+              setSelectedTab("search");
+            }}
+          >
+            <Ionicons name="search-outline" size={20} color={colors.muted} />
+            <Text style={styles.homeSearchText}>Search items, stores, friends...</Text>
+          </Pressable>
         </View>
 
-        <SectionHeader title="Friends" action="Rankings + recs" />
+        <SectionHeader title="Feed" action="Friends + recent buys" />
         {feedEvents.map((event) => (
           <FeedCard key={event.id} event={event} onPress={() => openStoreByName(event.storeName)} />
         ))}
@@ -887,24 +855,26 @@ function BoughtNearbyApp() {
       <StatusBar style="dark" />
       <View style={styles.outerShell}>
         <View style={styles.appShell}>
-          <View style={styles.topBar}>
-            {selectedShop ? (
-              <Pressable style={styles.backRow} onPress={() => setSelectedShop(null)}>
-                <View style={styles.backButton}>
-                  <Ionicons name="chevron-back" size={20} color={colors.ink} />
+          {(selectedShop || selectedTab !== "feed") && (
+            <View style={styles.topBar}>
+              {selectedShop ? (
+                <Pressable style={styles.backRow} onPress={() => setSelectedShop(null)}>
+                  <View style={styles.backButton}>
+                    <Ionicons name="chevron-back" size={20} color={colors.ink} />
+                  </View>
+                  <Text style={styles.appContext} numberOfLines={1}>{selectedShop.name}</Text>
+                </Pressable>
+              ) : (
+                <View>
+                  <Text style={styles.appName}>Bought Nearby</Text>
+                  <Text style={styles.appContext}>{activeTab.label}</Text>
                 </View>
-                <Text style={styles.appContext} numberOfLines={1}>{selectedShop.name}</Text>
-              </Pressable>
-            ) : (
-              <View>
-                <Text style={styles.appName}>Bought Nearby</Text>
-                <Text style={styles.appContext}>{activeTab.label}</Text>
+              )}
+              <View style={styles.logoMark}>
+                <Ionicons name="bag-handle" size={23} color="white" />
               </View>
-            )}
-            <View style={styles.logoMark}>
-              <Ionicons name="bag-handle" size={23} color="white" />
             </View>
-          </View>
+          )}
 
           {!selectedShop && selectedTab === "map" ? (
             <View style={styles.content}>{renderMap()}</View>
@@ -1220,6 +1190,36 @@ const styles = StyleSheet.create({
   },
   screen: {
     gap: 16,
+  },
+  homeScreen: {
+    gap: 16,
+    paddingTop: 8,
+  },
+  homeHeader: {
+    gap: 14,
+  },
+  homeTitle: {
+    color: colors.ink,
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: "900",
+    letterSpacing: -1.2,
+  },
+  homeSearchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+  },
+  homeSearchText: {
+    color: colors.muted,
+    fontSize: 16,
+    fontWeight: "700",
   },
   heroCard: {
     backgroundColor: colors.surface,
