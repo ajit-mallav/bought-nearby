@@ -1168,14 +1168,14 @@ function BoughtNearbyApp() {
           <View style={styles.profileHeaderInfo}>
             <Text style={styles.profileHeaderName}>{profile.name}</Text>
             <Text style={styles.profileHeaderSub}>@{profile.handle}</Text>
-            <Pressable onPress={openEditProfile}>
+            <Pressable onPress={openEditProfile} hitSlop={8}>
               <Text style={styles.profileNeighborhoodLink}>{profile.neighborhood ? `📍 ${profile.neighborhood}` : "+ Add neighborhood"}</Text>
             </Pressable>
             <View style={styles.profileActionRow}>
               <Pressable style={styles.profileFollowButton} onPress={openEditProfile}>
                 <Text style={styles.profileFollowButtonText}>Edit profile</Text>
               </Pressable>
-              <Pressable onPress={shareProfile} hitSlop={8}>
+              <Pressable style={styles.profileIconTarget} onPress={shareProfile} hitSlop={4}>
                 <Ionicons name="paper-plane-outline" size={22} color={feedColors.teal} />
               </Pressable>
             </View>
@@ -1250,7 +1250,7 @@ function BoughtNearbyApp() {
               <View style={styles.goalProgressTrack}>
                 <View style={[styles.goalProgressFill, { width: `${goalProgress}%` as `${number}%` }]} />
               </View>
-              <Pressable onPress={() => setProfile(({ goal2026: _dropped, ...rest }) => rest)}>
+              <Pressable onPress={() => setProfile(({ goal2026: _dropped, ...rest }) => rest)} hitSlop={8}>
                 <Text style={styles.profileAddLink}>Change goal</Text>
               </Pressable>
             </>
@@ -1323,7 +1323,7 @@ function BoughtNearbyApp() {
     const titles: Record<ProfileSection, string> = { bought: "Bought", recs: "Recs for You" };
     return (
       <View style={styles.homeScreen}>
-        <Pressable style={styles.backRow} onPress={() => setProfileSection(null)}>
+        <Pressable style={styles.backRow} onPress={() => setProfileSection(null)} hitSlop={8}>
           <View style={styles.backButton}>
             <Ionicons name="chevron-back" size={20} color={colors.ink} />
           </View>
@@ -2832,9 +2832,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   profileMenuButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: feedColors.border,
     backgroundColor: feedColors.background,
@@ -2880,14 +2880,23 @@ const styles = StyleSheet.create({
   profileActionRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    marginTop: 7,
+    gap: 8,
+    marginTop: 8,
   },
   profileFollowButton: {
     backgroundColor: feedColors.teal,
     borderRadius: 999,
-    paddingVertical: 9,
+    minHeight: 44,
+    paddingVertical: 10,
     paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileIconTarget: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   profileFollowButtonText: {
     color: "white",
@@ -2901,6 +2910,8 @@ const styles = StyleSheet.create({
   profileStatItem: {
     flex: 1,
     gap: 1,
+    minHeight: 44,
+    justifyContent: "center",
   },
   profileStatValue: {
     color: feedColors.ink,
@@ -2949,7 +2960,9 @@ const styles = StyleSheet.create({
   },
   profileViewAll: {
     alignSelf: "flex-end",
-    marginTop: -6,
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
   profileAvatarText: {
     color: "white",
@@ -3098,9 +3111,11 @@ const styles = StyleSheet.create({
     borderColor: feedColors.border,
     backgroundColor: feedColors.background,
     borderRadius: 999,
-    paddingVertical: 9,
+    minHeight: 44,
+    paddingVertical: 10,
     paddingHorizontal: 18,
     alignItems: "center",
+    justifyContent: "center",
   },
   profileGoalPillText: {
     color: feedColors.ink,
