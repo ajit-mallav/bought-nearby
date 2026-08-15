@@ -2,6 +2,8 @@ import { Category, FeedEvent, Purchase, RankingMap, Store, WantedItem } from "..
 
 export const CATEGORIES: Category[] = ["Clothing"];
 
+export const STYLE_FILTERS = ["Vintage", "Thrift", "Boutique", "Consignment"] as const;
+
 export const emptyRankings = (): RankingMap => ({
   Clothing: [],
 });
@@ -216,7 +218,7 @@ export const stores: Store[] = [
     address: "74 Guernsey St, Brooklyn, NY",
     lat: 40.7259,
     lng: -73.9539,
-    tags: ["vintage", "resale", "local"],
+    tags: ["vintage", "resale", "local", "consignment"],
     description: "Treasure-hunt resale racks and strong outerwear finds.",
     link: "https://beaconscloset.com",
     rating: 4.5,
@@ -311,7 +313,7 @@ export const stores: Store[] = [
     address: "204 Grand St, Brooklyn, NY",
     lat: 40.7127,
     lng: -73.9564,
-    tags: ["vintage", "resale", "local"],
+    tags: ["vintage", "resale", "local", "consignment"],
     description: "Dense vintage racks with deep denim and outerwear selection.",
     link: "https://ltrainvintage.com",
     rating: 4.2,
@@ -358,5 +360,43 @@ export const stores: Store[] = [
     reviewCount: 3100,
     isThrift: false,
     galleryPhotos: [PHOTOS.linenSet, PHOTOS.trench],
+  },
+  {
+    id: "s-wgacc",
+    name: "What Goes Around Comes Around",
+    category: "Clothing",
+    neighborhood: "SoHo",
+    borough: "Manhattan",
+    address: "351 W Broadway, New York, NY",
+    lat: 40.7233,
+    lng: -74.0027,
+    tags: ["consignment", "vintage", "luxury"],
+    description: "Designer vintage and consignment finds from decades of archival fashion.",
+    link: "https://www.whatgoesaroundnyc.com",
+    rating: 4.6,
+    photoUri: PHOTOS.hangingRack,
+    priceTier: 4,
+    reviewCount: 1200,
+    isThrift: false,
+    galleryPhotos: [PHOTOS.trench, PHOTOS.overcoat],
+  },
+  {
+    id: "s-ina",
+    name: "INA",
+    category: "Clothing",
+    neighborhood: "NoLita",
+    borough: "Manhattan",
+    address: "15 Bleecker St, New York, NY",
+    lat: 40.7259,
+    lng: -73.9945,
+    tags: ["consignment", "boutique", "vintage"],
+    description: "Longtime NYC consignment boutique mixing designer pieces with everyday finds.",
+    link: "https://inanyc.com",
+    rating: 4.5,
+    photoUri: PHOTOS.sweaters,
+    priceTier: 3,
+    reviewCount: 780,
+    isThrift: false,
+    galleryPhotos: [PHOTOS.jeans, PHOTOS.jacket],
   },
 ];

@@ -1,5 +1,7 @@
 export type Category = "Clothing";
 
+export type StyleFilter = "Vintage" | "Thrift" | "Boutique" | "Consignment";
+
 export type Purchase = {
   id: string;
   itemName: string;

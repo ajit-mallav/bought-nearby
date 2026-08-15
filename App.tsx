@@ -31,9 +31,9 @@ import {
 
 import NycMap from "./src/components/NycMap";
 import { loadDatabaseState, saveDatabaseState } from "./src/data/database";
-import { CATEGORIES, friendFeed, starterPurchases, starterRankings, starterWants, stores } from "./src/data/seed";
+import { CATEGORIES, STYLE_FILTERS, friendFeed, starterPurchases, starterRankings, starterWants, stores } from "./src/data/seed";
 import { colors, feedColors, fonts } from "./src/theme";
-import { Category, ComparisonSession, FeedEvent, Purchase, Store, WantedItem } from "./src/types";
+import { Category, ComparisonSession, FeedEvent, Purchase, Store, StyleFilter, WantedItem } from "./src/types";
 import { distanceMiles } from "./src/utils/geo";
 import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizePurchases, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
 
@@ -119,8 +119,8 @@ function BoughtNearbyApp() {
   const [toast, setToast] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchCategory, setSearchCategory] = useState<Category | "All">("All");
-  const [mapCategory, setMapCategory] = useState<Category | "All">("All");
+  const [searchStyle, setSearchStyle] = useState<StyleFilter | "All">("All");
+  const [mapStyle, setMapStyle] = useState<StyleFilter | "All">("All");
   const [userLocation, setUserLocation] = useState(DEFAULT_LOCATION);
   const [locationMessage, setLocationMessage] = useState("Showing a demo starting point in Union Square.");
   const [selectedShop, setSelectedShop] = useState<Store | null>(null);
@@ -412,7 +412,7 @@ function BoughtNearbyApp() {
 
   function renderFeed() {
     const underThreeDollars = [...stores]
-      .filter((store) => store.priceTier <= 3)
+      .filter((store) => store.priceTier < 3)
       .sort((a, b) => b.rating - a.rating)
       .slice(0, 10);
     const mostPopular = [...stores].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 10);
@@ -634,12 +634,15 @@ function BoughtNearbyApp() {
       }
       setSelectedTab(fallbackTab);
     };
+    const tagsForStoreName = (storeName: string) =>
+      stores.find((candidate) => candidate.name.toLowerCase() === storeName.toLowerCase())?.tags ?? [];
     const purchaseRows = purchases.map((purchase) => ({
       id: `purchase-${purchase.id}`,
       type: "Your shelf",
       title: purchase.itemName,
       subtitle: purchase.storeName,
       category: purchase.category,
+      styleTags: tagsForStoreName(purchase.storeName),
       image: purchase.photoUri,
       meta: rankOf(purchase.id, purchase.category, rankings)
         ? `#${rankOf(purchase.id, purchase.category, rankings)} • ${scoreOf(purchase.id, purchase.category, rankings)} score`
@@ -653,6 +656,7 @@ function BoughtNearbyApp() {
       title: want.itemName,
       subtitle: want.storeName,
       category: want.category,
+      styleTags: tagsForStoreName(want.storeName),
       image: want.photoUri,
       meta: "Saved for later",
       body: want.notes,
@@ -664,6 +668,7 @@ function BoughtNearbyApp() {
       title: event.itemName,
       subtitle: event.storeName,
       category: event.category,
+      styleTags: tagsForStoreName(event.storeName),
       image: event.photoUri,
       meta: `#${event.rank} • ${event.score} score`,
       body: event.isLocalStore ? "Local store find" : undefined,
@@ -675,6 +680,7 @@ function BoughtNearbyApp() {
       title: store.name,
       subtitle: `${store.neighborhood}, ${store.borough}`,
       category: store.category,
+      styleTags: store.tags,
       image: store.photoUri,
       meta: store.tags.join(" • "),
       body: store.description,
@@ -682,9 +688,9 @@ function BoughtNearbyApp() {
     }));
 
     const rows = [...purchaseRows, ...wantRows, ...friendRows, ...storeRows].filter((row) => {
-      const categoryMatch = searchCategory === "All" || row.category === searchCategory;
+      const styleMatch = storeMatchesStyle(row.styleTags, searchStyle);
       const text = `${row.title} ${row.subtitle} ${row.meta} ${row.body ?? ""}`.toLowerCase();
-      return categoryMatch && (!normalized || text.includes(normalized));
+      return styleMatch && (!normalized || text.includes(normalized));
     });
 
     return (
@@ -699,7 +705,7 @@ function BoughtNearbyApp() {
             value={searchTerm}
             onChangeText={setSearchTerm}
           />
-          <CategoryPicker selected={searchCategory} onSelect={setSearchCategory} includeAll />
+          <StylePicker selected={searchStyle} onSelect={setSearchStyle} />
         </View>
 
         <SectionHeader title={`${rows.length} result${rows.length === 1 ? "" : "s"}`} action="Shelf + wants + friends + stores" />
@@ -735,7 +741,7 @@ function BoughtNearbyApp() {
 
   function renderMap() {
     const categoryStores = stores
-      .filter((store) => mapCategory === "All" || store.category === mapCategory)
+      .filter((store) => storeMatchesStyle(store.tags, mapStyle))
       .map((store) => ({ ...store, distance: distanceMiles(userLocation, store) }))
       .sort((a, b) => a.distance - b.distance);
 
@@ -753,7 +759,7 @@ function BoughtNearbyApp() {
             </Pressable>
           </View>
           <Text style={styles.cardSubtitle}>{locationMessage}</Text>
-          <CategoryPicker selected={mapCategory} onSelect={setMapCategory} includeAll compact />
+          <StylePicker selected={mapStyle} onSelect={setMapStyle} compact />
         </View>
 
         <View style={styles.mapFill}>
@@ -772,7 +778,6 @@ function BoughtNearbyApp() {
     const shopFeed = feedEvents.filter((event) => event.storeName.toLowerCase() === store.name.toLowerCase());
     const shopWants = wants.filter((want) => want.storeName.toLowerCase() === store.name.toLowerCase());
     const isWantedStore = wantedStoreIds.has(store.id);
-    const matchScore = Math.min(99, Math.round(store.rating * 19 + shopFeed.length * 2 + shopWants.length));
 
     return (
       <View style={styles.screen}>
@@ -781,8 +786,8 @@ function BoughtNearbyApp() {
           <View style={styles.resultTopRow}>
             <Text style={styles.resultType}>{store.category}</Text>
             <View style={styles.ratingBadge}>
-              <Ionicons name="star" size={13} color={colors.accent} />
-              <Text style={styles.ratingBadgeText}>{store.rating.toFixed(1)}</Text>
+              <Ionicons name="star" size={13} color={ratingColorFor(store.rating * 2)} />
+              <Text style={[styles.ratingBadgeText, { color: ratingColorFor(store.rating * 2) }]}>{store.rating.toFixed(1)}</Text>
             </View>
           </View>
           <Text style={styles.cardTitle}>{store.name}</Text>
@@ -793,13 +798,6 @@ function BoughtNearbyApp() {
             <Ionicons name="chevron-forward" size={16} color={colors.muted} />
           </Pressable>
           <Text style={styles.resultBody}>{store.description}</Text>
-          <View style={styles.shopMatchCard}>
-            <View>
-              <Text style={styles.shopMatchLabel}>Your match score</Text>
-              <Text style={styles.shopMatchBody}>Based on your ranked closet, wants, and friend activity.</Text>
-            </View>
-            <Text style={styles.shopMatchValue}>{matchScore}%</Text>
-          </View>
           <View style={styles.shopActionRow}>
             <Pressable style={styles.shopPrimaryAction} onPress={() => startLogFromStore(store)}>
               <Ionicons name="bag-add-outline" size={17} color="white" />
@@ -821,7 +819,17 @@ function BoughtNearbyApp() {
         {shopFeed.length === 0 ? (
           <EmptyState icon="bag-handle-outline" title="Nothing logged yet" body="No purchases have been logged at this store yet." />
         ) : (
-          shopFeed.map((event) => <FeedCard key={event.id} event={event} />)
+          shopFeed.map((event) => (
+            <FeedPostCard
+              key={event.id}
+              event={event}
+              liked={likedPostIds.has(event.id)}
+              onToggleLike={() => toggleLike(event.id)}
+              onPressStore={() => setSelectedShop(store)}
+              onComment={() => showToast("Comments are coming soon.")}
+              onSend={() => showToast(`Send "${event.itemName}" to a friend — coming soon.`)}
+            />
+          ))
         )}
 
         <SectionHeader title="Want to buy here" action={`${shopWants.length} saved`} />
@@ -916,6 +924,10 @@ function BoughtNearbyApp() {
                   </View>
                   <Text style={styles.appContext} numberOfLines={1}>{selectedShop.name}</Text>
                 </Pressable>
+              ) : selectedTab === "add" || selectedTab === "search" || selectedTab === "map" ? (
+                <View style={styles.topBarLogoWrap}>
+                  <Image source={require("./assets/logo-horizontal.png")} style={styles.topBarLogo} resizeMode="contain" />
+                </View>
               ) : (
                 <View>
                   <BrandMark />
@@ -1060,6 +1072,11 @@ function ratingColorFor(score: number) {
   return colors.ratingBad;
 }
 
+function storeMatchesStyle(tags: string[], style: StyleFilter | "All") {
+  if (style === "All") return true;
+  return tags.some((tag) => tag.toLowerCase() === style.toLowerCase());
+}
+
 function FeedPostCard({
   event,
   liked,
@@ -1149,6 +1166,30 @@ function CategoryPicker({
               {category === "All" ? "🌎 " : ""}
               {category}
             </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function StylePicker({
+  selected,
+  onSelect,
+  compact,
+}: {
+  selected: StyleFilter | "All";
+  onSelect: (style: StyleFilter | "All") => void;
+  compact?: boolean;
+}) {
+  const values: (StyleFilter | "All")[] = ["All", ...STYLE_FILTERS];
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.categoryRow, compact && styles.categoryRowCompact]}>
+      {values.map((style) => {
+        const active = selected === style;
+        return (
+          <Pressable key={style} style={[styles.categoryPill, active && styles.categoryPillActive]} onPress={() => onSelect(style)}>
+            <Text style={[styles.categoryPillText, active && styles.categoryPillTextActive]}>{style}</Text>
           </Pressable>
         );
       })}
@@ -1305,6 +1346,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  topBarLogoWrap: {
+    flex: 1,
+    alignItems: "center",
+  },
+  topBarLogo: {
+    height: 34,
+    aspectRatio: 1023 / 343,
   },
   brandRow: {
     flexDirection: "row",
@@ -2085,35 +2134,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.ink,
     fontWeight: "700",
-  },
-  shopMatchCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    backgroundColor: colors.greenSoft,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  shopMatchLabel: {
-    color: colors.ink,
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  shopMatchBody: {
-    color: colors.muted,
-    lineHeight: 18,
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  shopMatchValue: {
-    color: colors.ink,
-    fontSize: 27,
-    fontWeight: "900",
-    letterSpacing: -0.6,
   },
   shopActionRow: {
     flexDirection: "row",
