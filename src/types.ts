@@ -37,6 +37,8 @@ export type Store = {
   tags: string[];
   description: string;
   link?: string;
+  rating: number;
+  photoUri: string;
 };
 
 export type FeedEvent = {
@@ -60,4 +62,13 @@ export type ComparisonSession = {
   high: number;
   mid: number;
   comparisons: number;
+};
+
+export type UserLocation = { lat: number; lng: number; label: string };
+
+export type NycMapProps = {
+  stores: (Store & { distance: number })[];
+  userLocation: UserLocation;
+  onSelectStore: (store: Store) => void;
+  onVisibleStoresChange: (storeIds: string[]) => void;
 };

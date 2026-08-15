@@ -18,12 +18,15 @@
     "expo-image-picker": "latest",
     "expo-location": "latest",
     "expo-status-bar": "latest",
+    "leaflet": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "react-leaflet": "latest",
     "react-native": "latest",
     "react-native-web": "latest"
   },
   "devDependencies": {
+    "@types/leaflet": "latest",
     "@types/react": "latest",
     "typescript": "latest"
   }

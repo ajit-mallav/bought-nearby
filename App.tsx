@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -17,16 +17,17 @@ import {
   Text,
   TextInput,
   View,
-  ViewStyle,
 } from "react-native";
 
+import NycMap from "./src/components/NycMap";
 import { CATEGORIES, CATEGORY_EMOJI, friendFeed, starterPurchases, starterRankings, stores } from "./src/data/seed";
+import { colors } from "./src/theme";
 import { Category, ComparisonSession, FeedEvent, Purchase, Store } from "./src/types";
+import { distanceMiles } from "./src/utils/geo";
 import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
 
 const STORAGE_KEY = "@bought-nearby:v1";
 const DEFAULT_LOCATION = { lat: 40.7359, lng: -73.9911, label: "Union Square demo location" };
-const NYC_BOUNDS = { minLat: 40.56, maxLat: 40.82, minLng: -74.05, maxLng: -73.89 };
 
 type TabKey = "feed" | "add" | "search" | "map" | "profile";
 type DraftPurchase = {
@@ -69,6 +70,12 @@ export default function App() {
   const [mapCategory, setMapCategory] = useState<Category | "All">("All");
   const [userLocation, setUserLocation] = useState(DEFAULT_LOCATION);
   const [locationMessage, setLocationMessage] = useState("Showing a demo starting point in Union Square.");
+  const [selectedShop, setSelectedShop] = useState<Store | null>(null);
+  const [visibleStoreIds, setVisibleStoreIds] = useState<string[] | null>(null);
+
+  const handleVisibleStoresChange = useCallback((ids: string[]) => {
+    setVisibleStoreIds(ids);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -316,9 +323,9 @@ export default function App() {
             Log what you bought, compare it against your own shelves, and help friends find the smaller stores worth visiting.
           </Text>
           <View style={styles.statRow}>
-            <StatCard label="Ranked" value={String(rankedCount)} />
-            <StatCard label="Local logs" value={String(localPurchaseCount)} />
-            <StatCard label="Categories" value={String(CATEGORIES.filter((category) => rankings[category].length > 0).length)} />
+            <StatCard icon="trophy-outline" label="Ranked" value={String(rankedCount)} />
+            <StatCard icon="storefront-outline" label="Local logs" value={String(localPurchaseCount)} />
+            <StatCard icon="grid-outline" label="Categories" value={String(CATEGORIES.filter((category) => rankings[category].length > 0).length)} />
           </View>
           <Pressable style={styles.primaryButton} onPress={() => setSelectedTab("add")}>
             <Ionicons name="camera-outline" size={19} color="white" />
@@ -328,10 +335,15 @@ export default function App() {
 
         <SectionHeader title="Friend activity" action="Beli-style rankings" />
         {feedEvents.map((event) => (
-          <FeedCard key={event.id} event={event} />
+          <FeedCard key={event.id} event={event} onPress={() => openStoreByName(event.storeName)} />
         ))}
       </View>
     );
+  }
+
+  function openStoreByName(name: string) {
+    const match = stores.find((store) => store.name.toLowerCase() === name.toLowerCase());
+    if (match) setSelectedShop(match);
   }
 
   function renderAdd() {
@@ -421,7 +433,7 @@ export default function App() {
         </View>
 
         <View style={styles.infoStrip}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.orange} />
+          <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
           <Text style={styles.infoStripText}>
             Binary insertion means item #{categoryCount + 1} takes about {Math.max(1, Math.ceil(Math.log2(categoryCount + 1)))} quick comparison
             {Math.max(1, Math.ceil(Math.log2(categoryCount + 1))) === 1 ? "" : "s"}.
@@ -512,10 +524,13 @@ export default function App() {
   }
 
   function renderMap() {
-    const filteredStores = stores
+    const categoryStores = stores
       .filter((store) => mapCategory === "All" || store.category === mapCategory)
       .map((store) => ({ ...store, distance: distanceMiles(userLocation, store) }))
       .sort((a, b) => a.distance - b.distance);
+
+    const visibleSet = visibleStoreIds ? new Set(visibleStoreIds) : null;
+    const listedStores = visibleSet ? categoryStores.filter((store) => visibleSet.has(store.id)) : categoryStores;
 
     return (
       <View style={styles.screen}>
@@ -533,27 +548,66 @@ export default function App() {
           <Text style={styles.cardSubtitle}>{locationMessage}</Text>
           <CategoryPicker selected={mapCategory} onSelect={setMapCategory} includeAll compact />
 
-          <View style={styles.fakeMap}>
-            <View style={styles.mapGridLineVertical} />
-            <View style={styles.mapGridLineHorizontal} />
-            <View style={styles.userMarker}>
-              <Ionicons name="navigate" size={15} color="white" />
+          <NycMap
+            stores={categoryStores}
+            userLocation={userLocation}
+            onSelectStore={setSelectedShop}
+            onVisibleStoresChange={handleVisibleStoresChange}
+          />
+        </View>
+
+        <SectionHeader title="Local store list" action={`${listedStores.length} in view`} />
+        {listedStores.length === 0 ? (
+          <EmptyState icon="map-outline" title="No stores in view" body="Zoom out or pan the map to reveal more nearby stores." />
+        ) : (
+          listedStores.map((store, index) => (
+            <StoreCard key={store.id} store={store} index={index + 1} distance={store.distance} onPress={() => setSelectedShop(store)} />
+          ))
+        )}
+      </View>
+    );
+  }
+
+  function renderShopDetail(store: Store) {
+    const openMaps = () => {
+      const query = encodeURIComponent(`${store.name} ${store.address}`);
+      const url = Platform.OS === "ios" ? `maps:0,0?q=${query}` : `https://www.google.com/maps/search/?api=1&query=${query}`;
+      Linking.openURL(url);
+    };
+    const shopFeed = feedEvents.filter((event) => event.storeName.toLowerCase() === store.name.toLowerCase());
+
+    return (
+      <View style={styles.screen}>
+        <Image source={{ uri: store.photoUri }} style={styles.shopHeroImage} resizeMode="cover" />
+        <View style={styles.card}>
+          <View style={styles.resultTopRow}>
+            <Text style={styles.resultType}>{CATEGORY_EMOJI[store.category]} {store.category}</Text>
+            <View style={styles.ratingBadge}>
+              <Ionicons name="star" size={13} color={colors.accent} />
+              <Text style={styles.ratingBadgeText}>{store.rating.toFixed(1)}</Text>
             </View>
-            {filteredStores.map((store, index) => {
-              const position = markerPosition(store);
-              return (
-                <View key={store.id} style={[styles.mapMarker, position as ViewStyle]}>
-                  <Text style={styles.mapMarkerText}>{index + 1}</Text>
-                </View>
-              );
-            })}
+          </View>
+          <Text style={styles.cardTitle}>{store.name}</Text>
+          <Text style={styles.cardSubtitle}>{store.neighborhood}, {store.borough}</Text>
+          <Pressable style={styles.addressRow} onPress={openMaps}>
+            <Ionicons name="location-outline" size={17} color={colors.accent} />
+            <Text style={styles.addressText}>{store.address}</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+          </Pressable>
+          <Text style={styles.resultBody}>{store.description}</Text>
+          <View style={styles.tagRow}>
+            {store.tags.map((tag) => (
+              <Text key={tag} style={styles.tag}>{tag}</Text>
+            ))}
           </View>
         </View>
 
-        <SectionHeader title="Local store list" action={`${filteredStores.length} places`} />
-        {filteredStores.map((store, index) => (
-          <StoreCard key={store.id} store={store} index={index + 1} distance={store.distance} />
-        ))}
+        <SectionHeader title="Bought here" action={`${shopFeed.length} logged`} />
+        {shopFeed.length === 0 ? (
+          <EmptyState icon="bag-handle-outline" title="Nothing logged yet" body="No purchases have been logged at this store yet." />
+        ) : (
+          shopFeed.map((event) => <FeedCard key={event.id} event={event} />)
+        )}
       </View>
     );
   }
@@ -568,9 +622,9 @@ export default function App() {
           <Text style={styles.profileTitle}>Your ranked shelves</Text>
           <Text style={styles.profileSubtitle}>Scores are derived from rank position — no manual 0–10 entry needed.</Text>
           <View style={styles.statRow}>
-            <StatCard label="Purchases" value={String(purchases.length)} />
-            <StatCard label="Ranked" value={String(rankedCount)} />
-            <StatCard label="Worth it" value={String(topItems.filter((item) => item.score >= 8).length)} />
+            <StatCard icon="bag-handle-outline" label="Purchases" value={String(purchases.length)} />
+            <StatCard icon="trophy-outline" label="Ranked" value={String(rankedCount)} />
+            <StatCard icon="heart-outline" label="Worth it" value={String(topItems.filter((item) => item.score >= 8).length)} />
           </View>
         </View>
 
@@ -608,7 +662,7 @@ export default function App() {
         })}
 
         <Pressable style={styles.resetButton} onPress={resetDemoData}>
-          <Ionicons name="refresh-outline" size={18} color={colors.orange} />
+          <Ionicons name="refresh-outline" size={18} color={colors.accent} />
           <Text style={styles.resetButtonText}>Reset demo data</Text>
         </Pressable>
       </View>
@@ -625,17 +679,26 @@ export default function App() {
       <View style={styles.outerShell}>
         <View style={styles.appShell}>
           <View style={styles.topBar}>
-            <View>
-              <Text style={styles.appName}>Bought Nearby</Text>
-              <Text style={styles.appContext}>{activeTab.label}</Text>
-            </View>
+            {selectedShop ? (
+              <Pressable style={styles.backRow} onPress={() => setSelectedShop(null)}>
+                <View style={styles.backButton}>
+                  <Ionicons name="chevron-back" size={20} color={colors.ink} />
+                </View>
+                <Text style={styles.appContext} numberOfLines={1}>{selectedShop.name}</Text>
+              </Pressable>
+            ) : (
+              <View>
+                <Text style={styles.appName}>Bought Nearby</Text>
+                <Text style={styles.appContext}>{activeTab.label}</Text>
+              </View>
+            )}
             <View style={styles.logoMark}>
               <Ionicons name="bag-handle" size={23} color="white" />
             </View>
           </View>
 
           <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
-            {renderBody()}
+            {selectedShop ? renderShopDetail(selectedShop) : renderBody()}
           </ScrollView>
 
           <View style={styles.tabBar}>
@@ -752,9 +815,10 @@ function FormLabel({ label }: { label: string }) {
   return <Text style={styles.formLabel}>{label}</Text>;
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, icon }: { label: string; value: string; icon?: keyof typeof Ionicons.glyphMap }) {
   return (
     <View style={styles.statCard}>
+      {!!icon && <Ionicons name={icon} size={16} color="white" style={styles.statIcon} />}
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -770,9 +834,10 @@ function SectionHeader({ title, action }: { title: string; action?: string }) {
   );
 }
 
-function FeedCard({ event }: { event: FeedEvent }) {
+function FeedCard({ event, onPress }: { event: FeedEvent; onPress?: () => void }) {
+  const Wrapper = onPress ? Pressable : View;
   return (
-    <View style={styles.feedCard}>
+    <Wrapper style={styles.feedCard} {...(onPress ? { onPress } : {})}>
       <View style={styles.feedAvatar}>
         <Text style={styles.feedAvatarText}>{event.avatar}</Text>
       </View>
@@ -786,7 +851,8 @@ function FeedCard({ event }: { event: FeedEvent }) {
         </Text>
         {event.isLocalStore && <Text style={styles.localChip}>Local store find</Text>}
       </View>
-    </View>
+      {!!onPress && <Ionicons name="chevron-forward" size={18} color={colors.muted} />}
+    </Wrapper>
   );
 }
 
@@ -809,7 +875,7 @@ function RankedRow({ purchase, rank, score, eyebrow }: { purchase: Purchase; ran
   );
 }
 
-function StoreCard({ store, index, distance }: { store: Store; index: number; distance: number }) {
+function StoreCard({ store, index, distance, onPress }: { store: Store; index: number; distance: number; onPress?: () => void }) {
   const openMaps = () => {
     const query = encodeURIComponent(`${store.name} ${store.address}`);
     const url = Platform.OS === "ios" ? `maps:0,0?q=${query}` : `https://www.google.com/maps/search/?api=1&query=${query}`;
@@ -817,14 +883,18 @@ function StoreCard({ store, index, distance }: { store: Store; index: number; di
   };
 
   return (
-    <View style={styles.storeCard}>
+    <Pressable style={styles.storeCard} onPress={onPress}>
       <View style={styles.storeIndex}>
         <Text style={styles.storeIndexText}>{index}</Text>
       </View>
       <View style={styles.storeContent}>
         <View style={styles.resultTopRow}>
           <Text style={styles.resultType}>{CATEGORY_EMOJI[store.category]} {store.category}</Text>
-          <Text style={styles.distanceText}>{distance.toFixed(1)} mi</Text>
+          <View style={styles.storeMetaRow}>
+            <Ionicons name="star" size={12} color={colors.accent} />
+            <Text style={styles.ratingText}>{store.rating.toFixed(1)}</Text>
+            <Text style={styles.distanceText}>• {distance.toFixed(1)} mi</Text>
+          </View>
         </View>
         <Text style={styles.resultTitle}>{store.name}</Text>
         <Text style={styles.resultSubtitle}>{store.neighborhood}, {store.borough}</Text>
@@ -836,9 +906,9 @@ function StoreCard({ store, index, distance }: { store: Store; index: number; di
         </View>
       </View>
       <Pressable style={styles.directionsButton} onPress={openMaps}>
-        <Ionicons name="arrow-redo-outline" size={17} color={colors.orange} />
+        <Ionicons name="arrow-redo-outline" size={17} color={colors.accent} />
       </Pressable>
-    </View>
+    </Pressable>
   );
 }
 
@@ -850,29 +920,6 @@ function EmptyState({ icon, title, body }: { icon: keyof typeof Ionicons.glyphMa
       <Text style={styles.emptyBody}>{body}</Text>
     </View>
   );
-}
-
-function markerPosition(store: Store) {
-  const left = ((store.lng - NYC_BOUNDS.minLng) / (NYC_BOUNDS.maxLng - NYC_BOUNDS.minLng)) * 100;
-  const top = ((NYC_BOUNDS.maxLat - store.lat) / (NYC_BOUNDS.maxLat - NYC_BOUNDS.minLat)) * 100;
-  return {
-    left: `${Math.max(5, Math.min(92, left))}%`,
-    top: `${Math.max(5, Math.min(88, top))}%`,
-  };
-}
-
-function distanceMiles(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }) {
-  const radius = 3958.8;
-  const dLat = degreesToRadians(destination.lat - origin.lat);
-  const dLng = degreesToRadians(destination.lng - origin.lng);
-  const lat1 = degreesToRadians(origin.lat);
-  const lat2 = degreesToRadians(destination.lat);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * radius * Math.asin(Math.sqrt(a));
-}
-
-function degreesToRadians(value: number) {
-  return (value * Math.PI) / 180;
 }
 
 function formatPrice(price?: number) {
@@ -889,20 +936,6 @@ function timeAgo(iso: string) {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
-
-const colors = {
-  background: "#FFF8EF",
-  surface: "#FFFFFF",
-  ink: "#211A16",
-  muted: "#8D7D73",
-  soft: "#F4E8DA",
-  soft2: "#FAEFE3",
-  border: "#E8D7C5",
-  orange: "#E85D2A",
-  orangeDark: "#C7461C",
-  green: "#2E8B57",
-  yellow: "#FFD166",
-};
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -938,15 +971,30 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: 2,
     fontWeight: "700",
+    flexShrink: 1,
+  },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  backButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 14,
+    backgroundColor: colors.soft2,
+    alignItems: "center",
+    justifyContent: "center",
   },
   logoMark: {
     width: 46,
     height: 46,
     borderRadius: 18,
-    backgroundColor: colors.orange,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.orange,
+    shadowColor: colors.accent,
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -991,7 +1039,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.3,
   },
   heroSubtitle: {
-    color: "#F7E7D7",
+    color: colors.soft,
     fontSize: 16,
     lineHeight: 23,
   },
@@ -1005,6 +1053,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 12,
   },
+  statIcon: {
+    marginBottom: 4,
+  },
   statValue: {
     color: colors.ink,
     fontSize: 20,
@@ -1017,7 +1068,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   primaryButton: {
-    backgroundColor: colors.orange,
+    backgroundColor: colors.accent,
     borderRadius: 18,
     paddingVertical: 15,
     paddingHorizontal: 18,
@@ -1025,7 +1076,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    shadowColor: colors.orange,
+    shadowColor: colors.accent,
     shadowOpacity: 0.23,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
@@ -1064,7 +1115,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ghostButtonText: {
-    color: colors.orange,
+    color: colors.accent,
     fontWeight: "900",
   },
   sectionHeader: {
@@ -1127,7 +1178,7 @@ const styles = StyleSheet.create({
   localChip: {
     alignSelf: "flex-start",
     overflow: "hidden",
-    backgroundColor: "#EAF7EF",
+    backgroundColor: colors.greenSoft,
     color: colors.green,
     borderRadius: 999,
     paddingHorizontal: 8,
@@ -1145,7 +1196,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cardKicker: {
-    color: colors.orange,
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "900",
     textTransform: "uppercase",
@@ -1311,7 +1362,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   resultType: {
-    color: colors.orange,
+    color: colors.accent,
     fontSize: 11,
     fontWeight: "900",
     textTransform: "uppercase",
@@ -1371,64 +1422,41 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: 12,
   },
-  fakeMap: {
-    height: 270,
-    borderRadius: 26,
-    backgroundColor: "#DCEBD8",
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#C6D7C1",
+  shopHeroImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 24,
+    backgroundColor: colors.soft,
   },
-  mapGridLineVertical: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: "48%",
-    width: 8,
-    backgroundColor: "rgba(255,255,255,0.52)",
-  },
-  mapGridLineHorizontal: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: "48%",
-    height: 8,
-    backgroundColor: "rgba(255,255,255,0.52)",
-  },
-  userMarker: {
-    position: "absolute",
-    left: "49%",
-    top: "49%",
-    width: 30,
-    height: 30,
-    marginLeft: -15,
-    marginTop: -15,
-    borderRadius: 15,
-    backgroundColor: colors.ink,
+  ratingBadge: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "white",
-    zIndex: 3,
+    gap: 4,
+    backgroundColor: colors.greenSoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  mapMarker: {
-    position: "absolute",
-    width: 30,
-    height: 30,
-    marginLeft: -15,
-    marginTop: -15,
-    borderRadius: 15,
-    backgroundColor: colors.orange,
-    borderWidth: 3,
-    borderColor: "white",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-  },
-  mapMarkerText: {
-    color: "white",
+  ratingBadgeText: {
+    color: colors.accentDark,
     fontWeight: "900",
     fontSize: 12,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.soft2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  addressText: {
+    flex: 1,
+    color: colors.ink,
+    fontWeight: "700",
   },
   storeCard: {
     flexDirection: "row",
@@ -1454,6 +1482,16 @@ const styles = StyleSheet.create({
   storeContent: {
     flex: 1,
     gap: 4,
+  },
+  storeMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  ratingText: {
+    color: colors.accentDark,
+    fontWeight: "900",
+    fontSize: 12,
   },
   distanceText: {
     color: colors.green,
@@ -1495,7 +1533,7 @@ const styles = StyleSheet.create({
     width: 74,
     height: 74,
     borderRadius: 28,
-    backgroundColor: colors.orange,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 4,
@@ -1513,7 +1551,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
   },
   profileSubtitle: {
-    color: "#F7E7D7",
+    color: colors.soft,
     textAlign: "center",
     lineHeight: 20,
     fontWeight: "600",
@@ -1597,7 +1635,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   resetButtonText: {
-    color: colors.orange,
+    color: colors.accent,
     fontWeight: "900",
   },
   tabBar: {
@@ -1695,7 +1733,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   compareLabel: {
-    color: colors.orange,
+    color: colors.accent,
     fontSize: 11,
     fontWeight: "900",
     textTransform: "uppercase",

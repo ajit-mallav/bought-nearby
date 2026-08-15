@@ -218,6 +218,9 @@ export const stores: Store[] = [
     tags: ["cookware", "local", "giftable"],
     description: "Independent kitchen shop with serious tools and friendly recs.",
     link: "https://whisknyc.com",
+    rating: 4.7,
+    photoUri:
+      "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80",
   },
   {
     id: "s-korin",
@@ -231,6 +234,9 @@ export const stores: Store[] = [
     tags: ["knives", "tableware", "local"],
     description: "Japanese knives, cookware, and hospitality-grade tableware.",
     link: "https://www.korin.com",
+    rating: 4.8,
+    photoUri:
+      "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?auto=format&fit=crop&w=600&q=80",
   },
   {
     id: "s-bh",
@@ -244,6 +250,9 @@ export const stores: Store[] = [
     tags: ["audio", "camera", "tech"],
     description: "NYC camera and electronics institution with deep inventory.",
     link: "https://www.bhphotovideo.com",
+    rating: 4.6,
+    photoUri:
+      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80",
   },
   {
     id: "s-adorama",
@@ -257,6 +266,9 @@ export const stores: Store[] = [
     tags: ["audio", "photo", "creator gear"],
     description: "Creator gear, electronics, and hands-on support.",
     link: "https://www.adorama.com",
+    rating: 4.4,
+    photoUri:
+      "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=600&q=80",
   },
   {
     id: "s-beacons",
@@ -270,6 +282,9 @@ export const stores: Store[] = [
     tags: ["vintage", "resale", "local"],
     description: "Treasure-hunt resale racks and strong outerwear finds.",
     link: "https://beaconscloset.com",
+    rating: 4.5,
+    photoUri:
+      "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=600&q=80",
   },
   {
     id: "s-tommy",
@@ -283,6 +298,9 @@ export const stores: Store[] = [
     tags: ["boutique", "coffee", "local"],
     description: "Curated Brooklyn boutique championing independent designers.",
     link: "https://www.sincerelytommy.com",
+    rating: 4.9,
+    photoUri:
+      "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=600&q=80",
   },
   {
     id: "s-running",
@@ -296,6 +314,9 @@ export const stores: Store[] = [
     tags: ["running", "fit checks", "local"],
     description: "Run-specialty shop with gait help and neighborhood route advice.",
     link: "https://brooklynrunningco.com",
+    rating: 4.6,
+    photoUri:
+      "https://images.unsplash.com/photo-1483721310020-03333e577078?auto=format&fit=crop&w=600&q=80",
   },
   {
     id: "s-paragon",
@@ -309,6 +330,9 @@ export const stores: Store[] = [
     tags: ["outdoors", "team sports", "fitness"],
     description: "Multi-floor sporting goods store near Union Square.",
     link: "https://www.paragonsports.com",
+    rating: 4.3,
+    photoUri:
+      "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=600&q=80",
   },
   {
     id: "s-coming-soon",
@@ -322,6 +346,9 @@ export const stores: Store[] = [
     tags: ["home", "design", "local"],
     description: "Playful home objects, gifts, and design-forward decor.",
     link: "https://comingsoonnewyork.com",
+    rating: 4.7,
+    photoUri:
+      "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=600&q=80",
   },
   {
     id: "s-mcnally",
@@ -335,5 +362,8 @@ export const stores: Store[] = [
     tags: ["books", "cafe", "staff picks"],
     description: "Beloved independent bookstore with sharp staff shelves.",
     link: "https://www.mcnallyjackson.com",
+    rating: 4.8,
+    photoUri:
+      "https://images.unsplash.com/photo-1521123845560-14093637aa7d?auto=format&fit=crop&w=600&q=80",
   },
 ];
