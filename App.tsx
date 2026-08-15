@@ -393,10 +393,48 @@ function BoughtNearbyApp() {
   }
 
   function openPlaceSearch() {
-    setPlaceSearchTerm(draft.storeName);
+    const initialQuery = draft.storeName.trim();
+    setPlaceSearchTerm(initialQuery);
     setPlaceSearchResults([]);
     setPlaceSearchError(null);
     setPlaceSearchVisible(true);
+    if (initialQuery) void searchPlaces(initialQuery);
+  }
+
+  function seededPlaceResults(query: string): PlaceSearchResult[] {
+    const normalized = query.toLowerCase();
+    return stores
+      .filter((store) => {
+        const haystack = `${store.name} ${store.address} ${store.neighborhood} ${store.borough} ${store.tags.join(" ")}`.toLowerCase();
+        return haystack.includes(normalized) || normalized.includes(store.name.toLowerCase());
+      })
+      .slice(0, 4)
+      .map((store) => ({
+        place_id: `seed-${store.id}`,
+        display_name: `${store.name}, ${store.address}`,
+        lat: String(store.lat),
+        lon: String(store.lng),
+        name: store.name,
+        type: "shop",
+        class: "shop",
+        address: {
+          shop: store.name,
+          road: store.address,
+          neighbourhood: store.neighborhood,
+          city: store.borough,
+          state: "New York",
+        },
+      }));
+  }
+
+  function dedupePlaceResults(results: PlaceSearchResult[]) {
+    const seen = new Set<string>();
+    return results.filter((place) => {
+      const key = `${placeName(place).toLowerCase()}|${Number(place.lat).toFixed(4)}|${Number(place.lon).toFixed(4)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   async function searchPlaces(query = placeSearchTerm) {
@@ -408,23 +446,35 @@ function BoughtNearbyApp() {
 
     setPlaceSearchLoading(true);
     setPlaceSearchError(null);
+    const localMatches = seededPlaceResults(cleanQuery);
+    setPlaceSearchResults(localMatches);
+
     try {
-      const params = new URLSearchParams({
-        format: "jsonv2",
-        addressdetails: "1",
-        limit: "8",
-        bounded: "1",
-        countrycodes: "us",
-        viewbox: "-74.28,40.92,-73.68,40.49",
-        q: `${cleanQuery} clothing store NYC`,
-      });
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
-      if (!response.ok) throw new Error("Place search failed");
-      const results = (await response.json()) as PlaceSearchResult[];
-      setPlaceSearchResults(results);
-      if (results.length === 0) setPlaceSearchError("No NYC shops found. Try a more specific name or neighborhood.");
+      const remoteResults: PlaceSearchResult[] = [];
+      const queries = [`${cleanQuery}, New York, NY`, `${cleanQuery} NYC`, cleanQuery];
+
+      for (const searchQuery of queries) {
+        const params = new URLSearchParams({
+          format: "jsonv2",
+          addressdetails: "1",
+          namedetails: "1",
+          limit: "8",
+          countrycodes: "us",
+          viewbox: "-74.35,40.95,-73.60,40.45",
+          q: searchQuery,
+        });
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+        if (!response.ok) continue;
+        const results = (await response.json()) as PlaceSearchResult[];
+        remoteResults.push(...results);
+        if (remoteResults.length >= 8) break;
+      }
+
+      const combined = dedupePlaceResults([...localMatches, ...remoteResults]).slice(0, 10);
+      setPlaceSearchResults(combined);
+      if (combined.length === 0) setPlaceSearchError("No map results found. Try the store name plus a neighborhood, like ‘Kith SoHo’ or ‘Beacon's Closet Williamsburg’. You can still type it manually.");
     } catch {
-      setPlaceSearchError("Could not search places right now. You can still type the shop manually.");
+      if (localMatches.length === 0) setPlaceSearchError("Could not search map places right now. You can still type the shop manually.");
     } finally {
       setPlaceSearchLoading(false);
     }
@@ -437,6 +487,21 @@ function BoughtNearbyApp() {
     });
     setPlaceSearchVisible(false);
     showToast(`${placeName(place)} added from map search.`);
+  }
+
+  function useGoogleMapsSearchForTypedPlace() {
+    const cleanQuery = placeSearchTerm.trim();
+    if (!cleanQuery) {
+      setPlaceSearchError("Type a shop name first.");
+      return;
+    }
+
+    updateDraft({
+      storeName: cleanQuery,
+      storeLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${cleanQuery} NYC`)}`,
+    });
+    setPlaceSearchVisible(false);
+    showToast(`${cleanQuery} added with a Google Maps search link.`);
   }
 
   async function pickImage() {
@@ -935,7 +1000,11 @@ function BoughtNearbyApp() {
                     <Text style={styles.placeSearchButtonText}>{placeSearchLoading ? "..." : "Search"}</Text>
                   </Pressable>
                 </View>
-                <Text style={styles.placeSearchHint}>Uses OpenStreetMap place search. Selected shops link out to Google Maps.</Text>
+                <Text style={styles.placeSearchHint}>Searches seeded shops first, then OpenStreetMap. If a real store is missing there, use the Google Maps link fallback.</Text>
+                <Pressable style={styles.googleMapsFallbackButton} onPress={useGoogleMapsSearchForTypedPlace}>
+                  <Ionicons name="navigate-outline" size={16} color={feedColors.teal} />
+                  <Text style={styles.googleMapsFallbackText}>Use as Google Maps search link</Text>
+                </Pressable>
                 {!!placeSearchError && <Text style={styles.placeSearchError}>{placeSearchError}</Text>}
                 <ScrollView style={styles.placeSearchResults} keyboardShouldPersistTaps="handled">
                   {placeSearchResults.map((place) => (
@@ -2986,6 +3055,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "700",
+  },
+  googleMapsFallbackButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 16,
+    backgroundColor: feedColors.tealSoft,
+    borderWidth: 1,
+    borderColor: feedColors.border,
+    paddingVertical: 12,
+  },
+  googleMapsFallbackText: {
+    color: feedColors.ink,
+    fontSize: 13,
+    fontWeight: "900",
   },
   placeSearchError: {
     color: colors.ratingBad,
