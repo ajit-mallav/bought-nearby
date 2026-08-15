@@ -12,8 +12,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -156,6 +157,9 @@ function BoughtNearbyApp() {
   const [toast, setToast] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [homeSearchActive, setHomeSearchActive] = useState(false);
+  const homeSearchInputRef = useRef<TextInput>(null);
+  const homeSearchProgress = useRef(new Animated.Value(0)).current;
   const [searchStyle, setSearchStyle] = useState<StyleFilter | "All">("All");
   const [searchPriceTiers, setSearchPriceTiers] = useState<Set<1 | 2 | 3 | 4>>(new Set());
   const [searchMinRating, setSearchMinRating] = useState<number | null>(null);
@@ -193,6 +197,20 @@ function BoughtNearbyApp() {
   const [leaderboardVisible, setLeaderboardVisible] = useState(false);
   const [customGoalOpen, setCustomGoalOpen] = useState(false);
   const [customGoalValue, setCustomGoalValue] = useState("");
+
+  useEffect(() => {
+    Animated.timing(homeSearchProgress, {
+      toValue: homeSearchActive ? 1 : 0,
+      duration: 220,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished && homeSearchActive) homeSearchInputRef.current?.focus();
+    });
+  }, [homeSearchActive, homeSearchProgress]);
+
+  useEffect(() => {
+    if (selectedTab !== "feed" && homeSearchActive) setHomeSearchActive(false);
+  }, [homeSearchActive, selectedTab]);
 
   useEffect(() => {
     let isMounted = true;
@@ -615,6 +633,9 @@ function BoughtNearbyApp() {
     const mostPopular = [...stores].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 10);
     const thriftStores = [...stores].filter((store) => store.isThrift).sort((a, b) => b.rating - a.rating).slice(0, 10);
     const friendPosts = feedEvents.filter((event) => event.actor !== "You");
+    const homeSearchScale = homeSearchProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] });
+    const homeSearchHelperOpacity = homeSearchProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
+    const homeSearchHelperHeight = homeSearchProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 42] });
 
     return (
       <View style={styles.homeScreen}>
@@ -622,16 +643,44 @@ function BoughtNearbyApp() {
           <Image source={require("./assets/logo-horizontal.png")} style={styles.homeLogoHorizontal} resizeMode="contain" />
         </View>
 
-        <Pressable
-          style={styles.homeSearchBar}
-          onPress={() => {
-            setSearchTerm("");
-            setSelectedTab("search");
-          }}
-        >
-          <Ionicons name="search-outline" size={20} color={feedColors.teal} />
-          <Text style={styles.homeSearchText}>Search for a store, member, or item</Text>
-        </Pressable>
+        <Animated.View style={[styles.homeSearchBar, homeSearchActive && styles.homeSearchBarActive, { transform: [{ scale: homeSearchScale }] }]}>
+          {homeSearchActive ? (
+            <View style={styles.homeSearchInputRow}>
+              <Ionicons name="search-outline" size={20} color={feedColors.teal} />
+              <TextInput
+                ref={homeSearchInputRef}
+                style={styles.homeSearchInput}
+                placeholder="Search for a store, member, or item"
+                placeholderTextColor={colors.muted}
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+                autoCapitalize="none"
+                returnKeyType="search"
+                onSubmitEditing={() => setSelectedTab("search")}
+              />
+              <Pressable
+                hitSlop={10}
+                onPress={() => {
+                  setSearchTerm("");
+                  setHomeSearchActive(false);
+                }}
+              >
+                <Text style={styles.homeSearchCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.homeSearchPressable} onPress={() => setHomeSearchActive(true)}>
+              <Ionicons name="search-outline" size={20} color={feedColors.teal} />
+              <Text style={styles.homeSearchText}>Search for a store, member, or item</Text>
+            </Pressable>
+          )}
+        </Animated.View>
+        <Animated.View style={[styles.homeSearchHelper, { height: homeSearchHelperHeight, opacity: homeSearchHelperOpacity }]}>
+          <Text style={styles.homeSearchHelperText}>Start typing here, then press search for full results.</Text>
+          <Pressable style={styles.homeSearchHelperButton} onPress={() => setSelectedTab("search")}>
+            <Text style={styles.homeSearchHelperButtonText}>View all</Text>
+          </Pressable>
+        </Animated.View>
 
         <FeaturedRow title="Under $$$" stores={underThreeDollars} onSelect={setSelectedShop} />
         <FeaturedRow title="Most popular" stores={mostPopular} onSelect={setSelectedShop} />
@@ -1995,20 +2044,77 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   homeSearchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
     backgroundColor: feedColors.tealSoft,
     borderWidth: 1,
     borderColor: feedColors.border,
     borderRadius: 18,
+    minHeight: 52,
+    justifyContent: "center",
+  },
+  homeSearchBarActive: {
+    backgroundColor: colors.surface,
+    borderColor: feedColors.teal,
+    shadowColor: feedColors.teal,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  homeSearchPressable: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     paddingHorizontal: 15,
     paddingVertical: 14,
+  },
+  homeSearchInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  homeSearchInput: {
+    flex: 1,
+    color: feedColors.ink,
+    fontFamily: fonts.semiBold,
+    fontSize: 16,
+    fontWeight: "700",
+    paddingVertical: 4,
   },
   homeSearchText: {
     color: feedColors.ink,
     fontSize: 16,
     fontWeight: "700",
+  },
+  homeSearchCancelText: {
+    color: feedColors.teal,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  homeSearchHelper: {
+    overflow: "hidden",
+    marginTop: -8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  homeSearchHelperText: {
+    flex: 1,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  homeSearchHelperButton: {
+    borderRadius: 999,
+    backgroundColor: feedColors.teal,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  homeSearchHelperButtonText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "900",
   },
   homeTopRow: {
     flexDirection: "row",
