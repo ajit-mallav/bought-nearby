@@ -1149,8 +1149,8 @@ function BoughtNearbyApp() {
     return (
       <View style={styles.homeScreen}>
         <View style={styles.homeTopRow}>
-          <Text style={styles.homeBrandText}>NearBuy</Text>
-          <Pressable style={styles.profileMenuButton} onPress={() => setProfileMenuVisible(true)} hitSlop={8}>
+          <Image source={require("./assets/logo-horizontal.png")} style={styles.homeLogoHorizontal} resizeMode="contain" />
+          <Pressable style={[styles.profileMenuButton, styles.profileMenuButtonFloating]} onPress={() => setProfileMenuVisible(true)} hitSlop={8}>
             <Ionicons name="ellipsis-horizontal" size={20} color={feedColors.ink} />
           </Pressable>
         </View>
@@ -2830,6 +2830,10 @@ const styles = StyleSheet.create({
     color: "#7C8DA0",
     fontSize: 12,
     fontWeight: "700",
+  },
+  profileMenuButtonFloating: {
+    position: "absolute",
+    right: 0,
   },
   profileMenuButton: {
     width: 44,
