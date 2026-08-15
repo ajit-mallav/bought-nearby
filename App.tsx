@@ -1296,7 +1296,7 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: "100%",
-    maxWidth: 600,
+    maxWidth: 720,
     backgroundColor: colors.background,
   },
   topBar: {
@@ -1396,7 +1396,8 @@ const styles = StyleSheet.create({
   homeTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    gap: 10,
   },
   homeBrandText: {
     color: feedColors.ink,
