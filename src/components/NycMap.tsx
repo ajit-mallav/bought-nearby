@@ -11,8 +11,8 @@ export default function NycMap({ stores, onSelectStore }: NycMapProps) {
     <View style={styles.map}>
       <View style={styles.gridLineVertical} />
       <View style={styles.gridLineHorizontal} />
-      <View style={styles.userMarker}>
-        <Ionicons name="navigate" size={15} color="white" />
+      <View style={styles.userLocationHalo} accessibilityLabel="Current location">
+        <View style={styles.userMarker} />
       </View>
       {stores.map((store, index) => {
         const position = markerPosition(store);
@@ -56,21 +56,32 @@ const styles = StyleSheet.create({
     height: 8,
     backgroundColor: "rgba(255,255,255,0.6)",
   },
-  userMarker: {
+  userLocationHalo: {
     position: "absolute",
     left: "49%",
     top: "49%",
-    width: 30,
-    height: 30,
-    marginLeft: -15,
-    marginTop: -15,
-    borderRadius: 15,
-    backgroundColor: colors.ink,
+    width: 44,
+    height: 44,
+    marginLeft: -22,
+    marginTop: -22,
+    borderRadius: 22,
+    backgroundColor: "rgba(10,132,255,0.16)",
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 3,
+  },
+  userMarker: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#0A84FF",
     borderWidth: 3,
     borderColor: "white",
-    zIndex: 3,
+    shadowColor: "#000000",
+    shadowOpacity: 0.28,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   marker: {
     position: "absolute",

@@ -15,9 +15,13 @@ const NYC_MAX_BOUNDS: L.LatLngBoundsExpression = [
 function userIcon() {
   return L.divIcon({
     className: "",
-    html: `<div style="width:22px;height:22px;border-radius:50%;background:${colors.ink};border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35);"></div>`,
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
+    html: `
+      <div aria-label="Current location" style="width:44px;height:44px;border-radius:50%;background:rgba(10,132,255,0.16);display:flex;align-items:center;justify-content:center;">
+        <div style="width:18px;height:18px;border-radius:50%;background:#0A84FF;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.28);"></div>
+      </div>
+    `,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 }
 

@@ -34,7 +34,7 @@ import {
 import NycMap from "./src/components/NycMap";
 import { loadDatabaseState, saveDatabaseState } from "./src/data/database";
 import { CATEGORIES, ITEM_TYPES, STYLE_FILTERS, friendFeed, starterPurchases, starterRankings, starterWants, stores } from "./src/data/seed";
-import { colors, feedColors, fonts } from "./src/theme";
+import { colors, feedColors, fonts, layout } from "./src/theme";
 import { Category, ComparisonSession, FeedEvent, ItemType, Purchase, Store, StyleFilter, WantedItem } from "./src/types";
 import { distanceMiles } from "./src/utils/geo";
 import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizePurchases, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
@@ -52,7 +52,7 @@ type ProfileInfo = {
 };
 
 const defaultProfile: ProfileInfo = { name: "Tej Chakravarthy", handle: "Tejchak", neighborhood: "" };
-const DEFAULT_LOCATION = { lat: 40.7359, lng: -73.9911, label: "Union Square demo location" };
+const DEFAULT_LOCATION = { lat: 40.7359, lng: -73.9911, label: "Union Square" };
 
 type TabKey = "feed" | "add" | "search" | "map" | "profile";
 type DraftPurchase = {
@@ -175,7 +175,7 @@ function BoughtNearbyApp() {
     });
   }
   const [userLocation, setUserLocation] = useState(DEFAULT_LOCATION);
-  const [locationMessage, setLocationMessage] = useState("Showing a demo starting point in Union Square.");
+  const [locationMessage, setLocationMessage] = useState("Showing nearby stores around Union Square.");
   const [selectedShop, setSelectedShop] = useState<Store | null>(null);
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
 
@@ -237,7 +237,7 @@ function BoughtNearbyApp() {
         }
       })
       .catch(() => {
-        showToast("Starting with demo data — saved data could not be loaded.");
+        showToast("Saved data could not be loaded. Showing your current recommendations.");
       })
       .finally(() => {
         if (isMounted) setHydrated(true);
@@ -387,7 +387,7 @@ function BoughtNearbyApp() {
   function useSamplePhoto() {
     const sample = starterPurchases.find((purchase) => purchase.category === draft.category) ?? starterPurchases[0];
     updateDraft({ photoUri: sample.photoUri });
-    showToast("Sample photo added for the demo.");
+    showToast("Photo added.");
   }
 
   function saveWant(itemName: string, storeName: string) {
@@ -506,7 +506,7 @@ function BoughtNearbyApp() {
     setComparison(null);
     setDraft(emptyDraft());
     await AsyncStorage.removeItem(STORAGE_KEY);
-    showToast("Demo data reset.");
+    showToast("App data reset.");
   }
 
   async function shareProfile() {
@@ -599,14 +599,14 @@ function BoughtNearbyApp() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== "granted") {
-        setLocationMessage("Location permission was denied, so the demo location is still being used.");
+        setLocationMessage("Location permission was denied. Showing stores near Union Square instead.");
         return;
       }
       const current = await Location.getCurrentPositionAsync({});
       setUserLocation({ lat: current.coords.latitude, lng: current.coords.longitude, label: "Your current location" });
       setLocationMessage("Sorted stores by your current location.");
     } catch {
-      setLocationMessage("Could not access GPS here, so the demo location is still being used.");
+      setLocationMessage("Could not access your location. Showing stores near Union Square instead.");
     }
   }
 
@@ -794,7 +794,7 @@ function BoughtNearbyApp() {
                 <Text style={styles.secondaryButtonText}>Choose photo</Text>
               </Pressable>
               <Pressable style={styles.ghostButton} onPress={useSamplePhoto}>
-                <Text style={styles.ghostButtonText}>Use sample</Text>
+                <Text style={styles.ghostButtonText}>Use stock photo</Text>
               </Pressable>
             </View>
           </View>
@@ -958,37 +958,49 @@ function BoughtNearbyApp() {
     });
 
     return (
-      <View style={styles.screen}>
-        <View style={styles.card}>
-          <Text style={styles.cardKicker}>Search</Text>
-          <Text style={styles.cardTitle}>Find similar items and stores</Text>
+      <View style={styles.searchScreen}>
+        <View style={styles.searchHeaderRow}>
+          <View>
+            <Text style={styles.searchEyebrow}>Discover</Text>
+            <Text style={styles.searchPageTitle}>Find something nearby</Text>
+          </View>
+          <Image source={require("./assets/icon-mark.png")} style={styles.searchLogoMark} resizeMode="contain" />
+        </View>
+
+        <View style={styles.searchBarActive}>
+          <Ionicons name="search-outline" size={20} color={feedColors.teal} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search denim jacket, vintage, boutique..."
-            placeholderTextColor={colors.muted}
+            style={styles.searchBarInput}
+            placeholder="Stores, members, or items"
+            placeholderTextColor={feedColors.ink}
             value={searchTerm}
             onChangeText={setSearchTerm}
+            autoFocus
+            accessibilityLabel="Search stores, members, or items"
+            returnKeyType="search"
           />
-          <View style={styles.searchFilterRow}>
-            <Pressable style={styles.filterButton} onPress={() => setActiveSearchFilter("type")}>
-              <Text style={styles.filterButtonText} numberOfLines={1}>{searchStyle === "All" ? "Store Type" : searchStyle}</Text>
-              <Ionicons name="chevron-down" size={14} color={colors.ink} />
+          {!!searchTerm && (
+            <Pressable accessibilityRole="button" accessibilityLabel="Clear search" style={styles.searchClearButton} onPress={() => setSearchTerm("")}>
+              <Ionicons name="close" size={16} color={feedColors.ink} />
             </Pressable>
-            <Pressable style={styles.filterButton} onPress={() => setActiveSearchFilter("cost")}>
-              <Text style={styles.filterButtonText} numberOfLines={1}>
-                {searchPriceTiers.size === 0
-                  ? "Cost"
-                  : [...searchPriceTiers].sort().map((tier) => "$".repeat(tier)).join(", ")}
-              </Text>
-              <Ionicons name="chevron-down" size={14} color={colors.ink} />
-            </Pressable>
-            <Pressable style={styles.filterButton} onPress={() => setActiveSearchFilter("rating")}>
-              <Text style={styles.filterButtonText} numberOfLines={1}>
-                {searchMinRating === null ? "Rating" : `>${searchMinRating.toFixed(1)}`}
-              </Text>
-              <Ionicons name="chevron-down" size={14} color={colors.ink} />
-            </Pressable>
-          </View>
+          )}
+        </View>
+
+        <View style={styles.searchFilterRow}>
+          <Pressable style={styles.filterButton} onPress={() => setActiveSearchFilter("type")}>
+            <Text style={styles.filterButtonText} numberOfLines={1}>{searchStyle === "All" ? "Store type" : searchStyle}</Text>
+            <Ionicons name="chevron-down" size={14} color={colors.ink} />
+          </Pressable>
+          <Pressable style={styles.filterButton} onPress={() => setActiveSearchFilter("cost")}>
+            <Text style={styles.filterButtonText} numberOfLines={1}>
+              {searchPriceTiers.size === 0 ? "Cost" : [...searchPriceTiers].sort().map((tier) => "$".repeat(tier)).join(", ")}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color={colors.ink} />
+          </Pressable>
+          <Pressable style={styles.filterButton} onPress={() => setActiveSearchFilter("rating")}>
+            <Text style={styles.filterButtonText} numberOfLines={1}>{searchMinRating === null ? "Rating" : `>${searchMinRating.toFixed(1)}`}</Text>
+            <Ionicons name="chevron-down" size={14} color={colors.ink} />
+          </Pressable>
         </View>
 
         <Modal visible={activeSearchFilter !== null} transparent animationType="fade" onRequestClose={() => setActiveSearchFilter(null)}>
@@ -1051,32 +1063,35 @@ function BoughtNearbyApp() {
           </Pressable>
         </Modal>
 
-        <SectionHeader title={`${rows.length} result${rows.length === 1 ? "" : "s"}`} action="Shelf + wants + friends + stores" />
+        <View style={styles.searchResultsHeader}>
+          <Text style={styles.searchSectionTitle}>{normalized ? `Results for “${searchTerm.trim()}”` : "Browse nearby"}</Text>
+          <Text style={styles.searchCountText}>{rows.length} {rows.length === 1 ? "result" : "results"}</Text>
+        </View>
         {rows.length === 0 ? (
           <EmptyState icon="search-outline" title="No matches yet" body="Try another category or log a purchase to build your searchable shelves." />
         ) : (
-          rows.map((row) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${row.title}`}
-              style={({ pressed }) => [styles.resultCard, pressed && styles.resultCardPressed]}
-              key={row.id}
-              onPress={row.onPress}
-            >
-              <PhotoPreview uri={row.image} category={row.category} size="small" />
-              <View style={styles.resultContent}>
-                <View style={styles.resultTopRow}>
-                  <Text style={styles.resultType}>{row.type}</Text>
-                  <Text style={styles.categoryBadge}>{row.category}</Text>
+          <View style={styles.searchResultsList}>
+            {rows.map((row, index) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${row.title}`}
+                style={({ pressed }) => [styles.searchResultCard, index === rows.length - 1 && styles.searchResultCardLast, pressed && styles.searchResultCardPressed]}
+                key={row.id}
+                onPress={row.onPress}
+              >
+                <PhotoPreview uri={row.image} category={row.category} size="small" />
+                <View style={styles.resultContent}>
+                  <Text style={styles.searchResultType}>{row.type}</Text>
+                  <Text style={styles.searchResultTitle} numberOfLines={1}>{row.title}</Text>
+                  <Text style={styles.searchResultSubtitle} numberOfLines={1}>{row.subtitle}</Text>
+                  <Text style={styles.searchResultMeta}>{row.meta}</Text>
                 </View>
-                <Text style={styles.resultTitle}>{row.title}</Text>
-                <Text style={styles.resultSubtitle}>{row.subtitle}</Text>
-                <Text style={styles.resultMeta}>{row.meta}</Text>
-                {!!row.body && <Text style={styles.resultBody}>{row.body}</Text>}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.muted} style={styles.resultChevron} />
-            </Pressable>
-          ))
+                <View style={styles.searchResultArrow}>
+                  <Ionicons name="chevron-forward" size={15} color={feedColors.teal} />
+                </View>
+              </Pressable>
+            ))}
+          </View>
         )}
       </View>
     );
@@ -1432,7 +1447,7 @@ function BoughtNearbyApp() {
       <StatusBar style="dark" />
       <View style={styles.outerShell}>
         <View style={styles.appShell}>
-          {(selectedShop || (selectedTab !== "feed" && selectedTab !== "profile")) && (
+          {(selectedShop || (selectedTab !== "feed" && selectedTab !== "search" && selectedTab !== "profile")) && (
             <View style={styles.topBar}>
               {selectedShop ? (
                 <Pressable style={styles.backRow} onPress={() => setSelectedShop(null)}>
@@ -1511,7 +1526,7 @@ function BoughtNearbyApp() {
               }}
             >
               <Ionicons name="refresh-outline" size={20} color={feedColors.teal} />
-              <Text style={styles.menuRowText}>Reset demo data</Text>
+              <Text style={styles.menuRowText}>Reset app data</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -1955,7 +1970,7 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: "100%",
-    maxWidth: 600,
+    maxWidth: 480,
     backgroundColor: colors.background,
   },
   topBar: {
@@ -2033,8 +2048,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentInner: {
-    paddingHorizontal: 32,
-    paddingBottom: 24,
+    paddingHorizontal: layout.screenPadding,
+    paddingBottom: 28,
   },
   screen: {
     gap: 16,
@@ -2042,6 +2057,35 @@ const styles = StyleSheet.create({
   homeScreen: {
     gap: 16,
     paddingTop: 8,
+  },
+  searchScreen: {
+    gap: layout.sectionGap,
+    paddingTop: 18,
+    backgroundColor: feedColors.background,
+  },
+  searchHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 52,
+  },
+  searchEyebrow: {
+    color: feedColors.teal,
+    fontFamily: fonts.black,
+    fontWeight: "900",
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  searchPageTitle: {
+    color: feedColors.ink,
+    fontFamily: fonts.black,
+    fontWeight: "900",
+    fontSize: 25,
+    letterSpacing: -0.7,
+  },
+  searchLogoMark: {
+    width: 42,
+    height: 48,
   },
   homeSearchBar: {
     backgroundColor: feedColors.tealSoft,
@@ -2115,6 +2159,117 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 12,
     fontWeight: "900",
+  },
+  searchBarActive: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: feedColors.tealSoft,
+    borderWidth: 1,
+    borderColor: feedColors.border,
+    borderRadius: layout.controlRadius,
+    paddingHorizontal: 14,
+    minHeight: layout.controlHeight,
+  },
+  searchBarInput: {
+    flex: 1,
+    color: feedColors.ink,
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+    paddingVertical: 11,
+  },
+  searchClearButton: {
+    width: layout.touchTarget,
+    height: layout.touchTarget,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchResultsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  searchSectionTitle: {
+    color: feedColors.ink,
+    fontFamily: fonts.black,
+    fontWeight: "900",
+    fontSize: 18,
+    letterSpacing: -0.3,
+  },
+  searchCountText: {
+    color: feedColors.ink,
+    fontFamily: fonts.semiBold,
+    fontWeight: "700",
+    fontSize: 12,
+    opacity: 0.55,
+  },
+  searchResultsList: {
+    overflow: "hidden",
+    backgroundColor: feedColors.background,
+    borderWidth: 1,
+    borderColor: feedColors.border,
+    borderRadius: layout.contentRadius,
+  },
+  searchResultCard: {
+    backgroundColor: feedColors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: feedColors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  searchResultCardLast: {
+    borderBottomWidth: 0,
+  },
+  searchResultCardPressed: {
+    backgroundColor: feedColors.tealSoft,
+  },
+  searchResultType: {
+    color: feedColors.teal,
+    fontFamily: fonts.black,
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  searchCategoryBadge: {
+    color: feedColors.ink,
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    fontWeight: "800",
+    opacity: 0.56,
+  },
+  searchResultTitle: {
+    color: feedColors.ink,
+    fontFamily: fonts.extraBold,
+    fontWeight: "900",
+    fontSize: 15,
+    letterSpacing: -0.2,
+  },
+  searchResultSubtitle: {
+    color: feedColors.teal,
+    fontFamily: fonts.semiBold,
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  searchResultMeta: {
+    color: feedColors.ink,
+    fontFamily: fonts.bold,
+    fontWeight: "800",
+    fontSize: 11,
+  },
+  searchResultArrow: {
+    width: layout.touchTarget,
+    height: layout.touchTarget,
+    borderRadius: 22,
+    backgroundColor: feedColors.tealSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
   homeTopRow: {
     flexDirection: "row",
@@ -2632,12 +2787,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 4,
-    backgroundColor: colors.soft2,
+    minHeight: layout.touchTarget,
+    backgroundColor: feedColors.background,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: feedColors.border,
     borderRadius: 14,
     paddingHorizontal: 12,
-    paddingVertical: 11,
   },
   filterButtonText: {
     flex: 1,
@@ -3342,20 +3497,25 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     gap: 7,
-    marginHorizontal: 14,
-    marginBottom: 10,
-    padding: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 6,
     borderRadius: 26,
-    backgroundColor: colors.surface,
+    backgroundColor: "rgba(255,255,255,0.92)",
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
   },
   tabItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 18,
-    paddingVertical: 8,
+    minHeight: layout.touchTarget,
+    paddingVertical: 6,
     gap: 2,
   },
   tabItemActive: {
@@ -3370,7 +3530,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
   },
   tabText: {
-    fontSize: 10,
+    fontSize: 11,
     color: colors.muted,
     fontWeight: "900",
   },

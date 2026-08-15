@@ -34,3 +34,12 @@ export const fonts = {
   extraBold: "Inter_800ExtraBold",
   black: "Inter_900Black",
 };
+
+export const layout = {
+  screenPadding: 24,
+  sectionGap: 20,
+  touchTarget: 44,
+  controlHeight: 48,
+  controlRadius: 16,
+  contentRadius: 20,
+};
