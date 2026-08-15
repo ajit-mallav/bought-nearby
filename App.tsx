@@ -1146,7 +1146,12 @@ function BoughtNearbyApp() {
     const goalProgress = profile.goal2026 ? Math.min(100, Math.round((yearCount / profile.goal2026) * 100)) : 0;
 
     return (
-      <View style={styles.screen}>
+      <View style={styles.homeScreen}>
+        <View style={styles.homeTopRow}>
+          <Text style={styles.homeBrandText}>NearBuy</Text>
+          <Image source={require("./assets/icon-mark.png")} style={styles.homeLogoMark} resizeMode="contain" />
+        </View>
+
         <View style={styles.profileHeroCard}>
           <View style={styles.profileHeroRow}>
             <Pressable onPress={openEditProfile}>
@@ -1194,17 +1199,17 @@ function BoughtNearbyApp() {
 
         <View style={styles.moduleGrid}>
           <Pressable style={styles.moduleTile} onPress={() => setProfileSection("bought")}>
-            <Ionicons name="checkmark-circle" size={22} color={colors.accentDark} />
+            <Ionicons name="checkmark-circle" size={22} color={feedColors.teal} />
             <Text style={styles.moduleValue}>{purchases.length}</Text>
             <Text style={styles.moduleLabel}>Bought</Text>
           </Pressable>
           <Pressable style={styles.moduleTile} onPress={() => setProfileSection("recs")}>
-            <Ionicons name="heart-circle" size={22} color={colors.accentDark} />
+            <Ionicons name="heart-circle" size={22} color={feedColors.teal} />
             <Text style={styles.moduleValue}>{recommendedStores.length}</Text>
             <Text style={styles.moduleLabel}>Recs for You</Text>
           </Pressable>
           <Pressable style={styles.moduleTile} onPress={() => setProfileSection("bought")}>
-            <Ionicons name="flame" size={22} color={colors.accentDark} />
+            <Ionicons name="flame" size={22} color={feedColors.teal} />
             <Text style={styles.moduleValue}>{streakWeeks}w</Text>
             <Text style={styles.moduleLabel}>Current Streak</Text>
           </Pressable>
@@ -1295,7 +1300,7 @@ function BoughtNearbyApp() {
   function renderProfileSection(section: ProfileSection) {
     const titles: Record<ProfileSection, string> = { bought: "Bought", recs: "Recs for You" };
     return (
-      <View style={styles.screen}>
+      <View style={styles.homeScreen}>
         <Pressable style={styles.backRow} onPress={() => setProfileSection(null)}>
           <View style={styles.backButton}>
             <Ionicons name="chevron-back" size={20} color={colors.ink} />
@@ -1434,7 +1439,7 @@ function BoughtNearbyApp() {
                 resetDemoData();
               }}
             >
-              <Ionicons name="refresh-outline" size={20} color={colors.accent} />
+              <Ionicons name="refresh-outline" size={20} color={feedColors.teal} />
               <Text style={styles.menuRowText}>Reset demo data</Text>
             </Pressable>
           </View>
@@ -2775,7 +2780,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   profileHeroCard: {
-    backgroundColor: colors.ink,
+    backgroundColor: feedColors.ink,
     borderRadius: 26,
     padding: 18,
     gap: 16,
@@ -2789,7 +2794,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 22,
-    backgroundColor: colors.accent,
+    backgroundColor: feedColors.teal,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2814,12 +2819,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   heroHandle: {
-    color: colors.silver,
+    color: "rgba(255,255,255,0.75)",
     fontSize: 13,
     fontWeight: "600",
   },
   heroNeighborhood: {
-    color: colors.soft,
+    color: feedColors.teal,
     fontSize: 14,
     fontWeight: "700",
     marginTop: 2,
@@ -2852,7 +2857,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   heroStatLabel: {
-    color: colors.silver,
+    color: "rgba(255,255,255,0.75)",
     fontSize: 12,
     fontWeight: "600",
   },
@@ -2869,20 +2874,20 @@ const styles = StyleSheet.create({
   moduleTile: {
     flexGrow: 1,
     flexBasis: "46%",
-    backgroundColor: colors.surface,
+    backgroundColor: feedColors.background,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: feedColors.border,
     borderRadius: 20,
     padding: 14,
     gap: 3,
   },
   moduleValue: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 22,
     fontWeight: "900",
   },
   moduleLabel: {
-    color: colors.muted,
+    color: "#7C8DA0",
     fontSize: 13,
     fontWeight: "700",
   },
@@ -2892,7 +2897,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   profileAddLink: {
-    color: colors.accentDark,
+    color: feedColors.teal,
     fontSize: 16,
     fontWeight: "700",
     marginTop: 2,
@@ -2905,20 +2910,20 @@ const styles = StyleSheet.create({
   profilePillButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: feedColors.border,
+    backgroundColor: feedColors.background,
     borderRadius: 12,
     paddingVertical: 11,
     alignItems: "center",
   },
   profilePillButtonText: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 15,
     fontWeight: "600",
   },
   profilePillPrimary: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: feedColors.teal,
+    borderColor: feedColors.teal,
   },
   profilePillPrimaryText: {
     color: "white",
@@ -2930,21 +2935,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   profileSectionTitle: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 20,
     fontWeight: "900",
   },
   goalProgressTrack: {
     height: 10,
     borderRadius: 999,
-    backgroundColor: colors.soft2,
+    backgroundColor: feedColors.background,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: feedColors.border,
     overflow: "hidden",
   },
   goalProgressFill: {
     height: "100%",
-    backgroundColor: colors.accent,
+    backgroundColor: feedColors.teal,
     borderRadius: 999,
   },
   customGoalRow: {
@@ -2953,7 +2958,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   customGoalButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: feedColors.teal,
     borderRadius: 14,
     paddingVertical: 13,
     paddingHorizontal: 22,
@@ -2967,7 +2972,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   menuRowText: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 16,
     fontWeight: "700",
   },
@@ -2978,12 +2983,12 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   leaderRowYou: {
-    backgroundColor: colors.greenSoft,
+    backgroundColor: feedColors.tealSoft,
     borderRadius: 14,
     paddingHorizontal: 10,
   },
   leaderRank: {
-    color: colors.accentDark,
+    color: feedColors.teal,
     fontSize: 15,
     fontWeight: "900",
     width: 32,
@@ -2999,14 +3004,14 @@ const styles = StyleSheet.create({
     borderRadius: 36,
   },
   editAvatarPlaceholder: {
-    backgroundColor: colors.accent,
+    backgroundColor: feedColors.teal,
     alignItems: "center",
     justifyContent: "center",
   },
   profileGoalCard: {
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.greenSoft,
+    borderColor: feedColors.border,
+    backgroundColor: feedColors.tealSoft,
     borderRadius: 22,
     padding: 16,
     gap: 12,
@@ -3017,12 +3022,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   profileGoalTitle: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 20,
     fontWeight: "900",
   },
   profileGoalBody: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 15,
     lineHeight: 21,
     marginTop: 4,
@@ -3036,22 +3041,22 @@ const styles = StyleSheet.create({
   },
   profileGoalPill: {
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: feedColors.border,
+    backgroundColor: feedColors.background,
     borderRadius: 999,
     paddingVertical: 9,
     paddingHorizontal: 18,
     alignItems: "center",
   },
   profileGoalPillText: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 15,
     fontWeight: "600",
   },
   shelfCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: feedColors.background,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: feedColors.border,
     borderRadius: 26,
     padding: 14,
     gap: 6,
@@ -3063,12 +3068,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   shelfTitle: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 18,
     fontWeight: "900",
   },
   shelfCount: {
-    color: colors.muted,
+    color: "#7C8DA0",
     fontWeight: "800",
     fontSize: 12,
   },
