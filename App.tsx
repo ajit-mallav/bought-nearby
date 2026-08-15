@@ -48,6 +48,7 @@ type DraftPurchase = {
   storeLink: string;
   price: string;
   category: Category;
+  styleTag: StyleFilter;
   notes: string;
   photoUri?: string;
 };
@@ -67,8 +68,13 @@ const emptyDraft = (): DraftPurchase => ({
   storeLink: "",
   price: "",
   category: "Clothing",
+  styleTag: STYLE_FILTERS[0],
   notes: "",
 });
+
+function firstMatchingStyleTag(tags: string[]): StyleFilter | undefined {
+  return STYLE_FILTERS.find((style) => tags.some((tag) => tag.toLowerCase() === style.toLowerCase()));
+}
 
 const appFonts = {
   Inter_400Regular,
@@ -273,6 +279,7 @@ function BoughtNearbyApp() {
       storeName,
       storeLink: draft.storeLink.trim() || matchedStore?.link,
       category: draft.category,
+      styleTag: draft.styleTag,
       photoUri: draft.photoUri || matchedStore?.photoUri,
       notes: draft.notes.trim() || undefined,
       createdAt: new Date().toISOString(),
@@ -306,6 +313,7 @@ function BoughtNearbyApp() {
       storeLink: draft.storeLink.trim() || matchedStore?.link,
       price: Number.isFinite(cleanPrice) && cleanPrice > 0 ? cleanPrice : undefined,
       category: draft.category,
+      styleTag: draft.styleTag,
       photoUri: draft.photoUri,
       notes: draft.notes.trim() || undefined,
       createdAt: new Date().toISOString(),
@@ -474,6 +482,7 @@ function BoughtNearbyApp() {
       storeName: store.name,
       storeLink: store.link,
       category: store.category,
+      styleTag: firstMatchingStyleTag(store.tags),
       photoUri: store.photoUri,
       notes: `Saved from the map to visit ${store.neighborhood}.`,
       createdAt: new Date().toISOString(),
@@ -490,6 +499,7 @@ function BoughtNearbyApp() {
       storeName: store.name,
       storeLink: store.link ?? "",
       category: store.category,
+      styleTag: firstMatchingStyleTag(store.tags) ?? STYLE_FILTERS[0],
     });
     setSelectedShop(null);
     setSelectedTab("add");
@@ -503,6 +513,7 @@ function BoughtNearbyApp() {
       storeName: want.storeName,
       storeLink: want.storeLink ?? "",
       category: want.category,
+      styleTag: want.styleTag ?? STYLE_FILTERS[0],
       notes: want.notes ?? "",
       photoUri: want.photoUri,
     });
@@ -589,12 +600,16 @@ function BoughtNearbyApp() {
               />
             </View>
             <View style={styles.flexOne}>
-              <FormLabel label="Category" />
+              <FormLabel label="Style" />
               <Text style={styles.comparisonHint}>{isWantMode ? `${wants.length} wants saved` : `${categoryCount} already ranked`}</Text>
             </View>
           </View>
 
-          <CategoryPicker selected={draft.category} onSelect={(category) => category !== "All" && updateDraft({ category })} />
+          <StylePicker
+            selected={draft.styleTag}
+            onSelect={(style) => style !== "All" && updateDraft({ styleTag: style })}
+            includeAll={false}
+          />
 
           <FormLabel label="Notes" />
           <TextInput
@@ -1135,45 +1150,18 @@ function FeedPostCard({
   );
 }
 
-function CategoryPicker({
-  selected,
-  onSelect,
-  includeAll,
-  compact,
-}: {
-  selected: Category | "All";
-  onSelect: (category: Category | "All") => void;
-  includeAll?: boolean;
-  compact?: boolean;
-}) {
-  const values = includeAll ? (["All", ...CATEGORIES] as (Category | "All")[]) : CATEGORIES;
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.categoryRow, compact && styles.categoryRowCompact]}>
-      {values.map((category) => {
-        const active = selected === category;
-        return (
-          <Pressable key={category} style={[styles.categoryPill, active && styles.categoryPillActive]} onPress={() => onSelect(category)}>
-            <Text style={[styles.categoryPillText, active && styles.categoryPillTextActive]}>
-              {category === "All" ? "🌎 " : ""}
-              {category}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
 function StylePicker({
   selected,
   onSelect,
+  includeAll = true,
   compact,
 }: {
   selected: StyleFilter | "All";
   onSelect: (style: StyleFilter | "All") => void;
+  includeAll?: boolean;
   compact?: boolean;
 }) {
-  const values: (StyleFilter | "All")[] = ["All", ...STYLE_FILTERS];
+  const values: (StyleFilter | "All")[] = includeAll ? ["All", ...STYLE_FILTERS] : [...STYLE_FILTERS];
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.categoryRow, compact && styles.categoryRowCompact]}>
       {values.map((style) => {

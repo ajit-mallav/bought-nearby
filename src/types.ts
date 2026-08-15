@@ -9,6 +9,7 @@ export type Purchase = {
   storeLink?: string;
   price?: number;
   category: Category;
+  styleTag?: StyleFilter;
   photoUri?: string;
   createdAt: string;
   notes?: string;
@@ -23,6 +24,7 @@ export type WantedItem = {
   storeName: string;
   storeLink?: string;
   category: Category;
+  styleTag?: StyleFilter;
   photoUri?: string;
   createdAt: string;
   notes?: string;
