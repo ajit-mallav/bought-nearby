@@ -68,6 +68,17 @@ type DraftPurchase = {
   photoUri?: string;
 };
 
+type PlaceSearchResult = {
+  place_id: number | string;
+  display_name: string;
+  lat: string;
+  lon: string;
+  name?: string;
+  type?: string;
+  class?: string;
+  address?: Record<string, string | undefined>;
+};
+
 const tabs: { key: TabKey; label: string; icon: string }[] = [
   { key: "feed", label: "Home", icon: "sparkles-outline" },
   { key: "map", label: "Map", icon: "map-outline" },
@@ -153,6 +164,11 @@ function BoughtNearbyApp() {
   const [wants, setWants] = useState<WantedItem[]>(starterWants);
   const [draft, setDraft] = useState<DraftPurchase>(emptyDraft());
   const [itemTypeDropdownOpen, setItemTypeDropdownOpen] = useState(false);
+  const [placeSearchVisible, setPlaceSearchVisible] = useState(false);
+  const [placeSearchTerm, setPlaceSearchTerm] = useState("");
+  const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([]);
+  const [placeSearchLoading, setPlaceSearchLoading] = useState(false);
+  const [placeSearchError, setPlaceSearchError] = useState<string | null>(null);
   const [comparison, setComparison] = useState<ComparisonSession | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -360,6 +376,67 @@ function BoughtNearbyApp() {
 
   function updateDraft(update: Partial<DraftPurchase>) {
     setDraft((current) => ({ ...current, ...update }));
+  }
+
+  function placeName(place: PlaceSearchResult) {
+    return place.name || place.address?.shop || place.address?.retail || place.address?.amenity || place.display_name.split(",")[0]?.trim() || "Selected shop";
+  }
+
+  function placeSubtitle(place: PlaceSearchResult) {
+    const parts = place.display_name.split(",").map((part) => part.trim()).filter(Boolean);
+    return parts.slice(1, 4).join(", ") || place.display_name;
+  }
+
+  function googleMapsUrlForPlace(place: PlaceSearchResult) {
+    const query = encodeURIComponent(`${placeName(place)} ${place.display_name}`);
+    return `https://www.google.com/maps/search/?api=1&query=${query}`;
+  }
+
+  function openPlaceSearch() {
+    setPlaceSearchTerm(draft.storeName);
+    setPlaceSearchResults([]);
+    setPlaceSearchError(null);
+    setPlaceSearchVisible(true);
+  }
+
+  async function searchPlaces(query = placeSearchTerm) {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) {
+      setPlaceSearchError("Type a shop name first.");
+      return;
+    }
+
+    setPlaceSearchLoading(true);
+    setPlaceSearchError(null);
+    try {
+      const params = new URLSearchParams({
+        format: "jsonv2",
+        addressdetails: "1",
+        limit: "8",
+        bounded: "1",
+        countrycodes: "us",
+        viewbox: "-74.28,40.92,-73.68,40.49",
+        q: `${cleanQuery} clothing store NYC`,
+      });
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+      if (!response.ok) throw new Error("Place search failed");
+      const results = (await response.json()) as PlaceSearchResult[];
+      setPlaceSearchResults(results);
+      if (results.length === 0) setPlaceSearchError("No NYC shops found. Try a more specific name or neighborhood.");
+    } catch {
+      setPlaceSearchError("Could not search places right now. You can still type the shop manually.");
+    } finally {
+      setPlaceSearchLoading(false);
+    }
+  }
+
+  function selectPlace(place: PlaceSearchResult) {
+    updateDraft({
+      storeName: placeName(place),
+      storeLink: googleMapsUrlForPlace(place),
+    });
+    setPlaceSearchVisible(false);
+    showToast(`${placeName(place)} added from map search.`);
   }
 
   async function pickImage() {
@@ -809,13 +886,19 @@ function BoughtNearbyApp() {
           />
 
           <FormLabel label="Store or link" />
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Beacon's Closet"
-            placeholderTextColor={colors.muted}
-            value={draft.storeName}
-            onChangeText={(storeName) => updateDraft({ storeName })}
-          />
+          <View style={styles.storeLookupRow}>
+            <TextInput
+              style={[styles.input, styles.storeLookupInput]}
+              placeholder="e.g. Beacon's Closet"
+              placeholderTextColor={colors.muted}
+              value={draft.storeName}
+              onChangeText={(storeName) => updateDraft({ storeName })}
+            />
+            <Pressable style={styles.storeLookupButton} onPress={openPlaceSearch}>
+              <Ionicons name="map-outline" size={17} color="white" />
+              <Text style={styles.storeLookupButtonText}>Find</Text>
+            </Pressable>
+          </View>
           <TextInput
             style={[styles.input, styles.inputSpacing]}
             placeholder="Optional product/store URL"
@@ -824,6 +907,56 @@ function BoughtNearbyApp() {
             value={draft.storeLink}
             onChangeText={(storeLink) => updateDraft({ storeLink })}
           />
+
+          <Modal visible={placeSearchVisible} transparent animationType="slide" onRequestClose={() => setPlaceSearchVisible(false)}>
+            <View style={styles.placeSearchBackdrop}>
+              <View style={styles.placeSearchSheet}>
+                <View style={styles.placeSearchHeader}>
+                  <View>
+                    <Text style={styles.filterSheetTitle}>Find a shop</Text>
+                    <Text style={styles.placeSearchSubtitle}>Search NYC places and fill the store field.</Text>
+                  </View>
+                  <Pressable style={styles.placeSearchCloseButton} onPress={() => setPlaceSearchVisible(false)}>
+                    <Ionicons name="close" size={20} color={colors.ink} />
+                  </Pressable>
+                </View>
+                <View style={styles.placeSearchInputRow}>
+                  <TextInput
+                    style={[styles.input, styles.placeSearchInput]}
+                    placeholder="Search Beacon's Closet, vintage SoHo..."
+                    placeholderTextColor={colors.muted}
+                    value={placeSearchTerm}
+                    onChangeText={setPlaceSearchTerm}
+                    autoCapitalize="words"
+                    returnKeyType="search"
+                    onSubmitEditing={() => searchPlaces()}
+                  />
+                  <Pressable style={styles.placeSearchButton} onPress={() => searchPlaces()} disabled={placeSearchLoading}>
+                    <Text style={styles.placeSearchButtonText}>{placeSearchLoading ? "..." : "Search"}</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.placeSearchHint}>Uses OpenStreetMap place search. Selected shops link out to Google Maps.</Text>
+                {!!placeSearchError && <Text style={styles.placeSearchError}>{placeSearchError}</Text>}
+                <ScrollView style={styles.placeSearchResults} keyboardShouldPersistTaps="handled">
+                  {placeSearchResults.map((place) => (
+                    <Pressable key={String(place.place_id)} style={styles.placeResultRow} onPress={() => selectPlace(place)}>
+                      <View style={styles.placeResultIcon}>
+                        <Ionicons name="storefront-outline" size={18} color={feedColors.teal} />
+                      </View>
+                      <View style={styles.placeResultContent}>
+                        <Text style={styles.placeResultTitle}>{placeName(place)}</Text>
+                        <Text style={styles.placeResultSubtitle} numberOfLines={2}>{placeSubtitle(place)}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={17} color={colors.muted} />
+                    </Pressable>
+                  ))}
+                  {!placeSearchLoading && placeSearchResults.length === 0 && !placeSearchError && (
+                    <Text style={styles.placeSearchEmpty}>Search for a store name to see map results.</Text>
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
 
           <View style={styles.twoColumnRow}>
             <View style={styles.flexOne}>
@@ -2770,6 +2903,134 @@ const styles = StyleSheet.create({
   },
   inputSpacing: {
     marginTop: -6,
+  },
+  storeLookupRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  storeLookupInput: {
+    flex: 1,
+  },
+  storeLookupButton: {
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: feedColors.teal,
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  storeLookupButtonText: {
+    color: "white",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  placeSearchBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(23, 33, 27, 0.45)",
+    justifyContent: "flex-end",
+  },
+  placeSearchSheet: {
+    maxHeight: "82%",
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 18,
+    gap: 12,
+  },
+  placeSearchHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  placeSearchSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "700",
+    paddingHorizontal: 10,
+  },
+  placeSearchCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 14,
+    backgroundColor: colors.soft2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeSearchInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  placeSearchInput: {
+    flex: 1,
+  },
+  placeSearchButton: {
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeSearchButtonText: {
+    color: "white",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  placeSearchHint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  placeSearchError: {
+    color: colors.ratingBad,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  placeSearchResults: {
+    maxHeight: 360,
+  },
+  placeResultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  placeResultIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 15,
+    backgroundColor: feedColors.tealSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeResultContent: {
+    flex: 1,
+  },
+  placeResultTitle: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  placeResultSubtitle: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  placeSearchEmpty: {
+    color: colors.muted,
+    textAlign: "center",
+    fontWeight: "700",
+    paddingVertical: 24,
   },
   textArea: {
     minHeight: 86,
