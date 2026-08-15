@@ -15,6 +15,18 @@ export type Purchase = {
   isLocalStore?: boolean;
 };
 
+export type WantedItem = {
+  id: string;
+  itemName: string;
+  storeName: string;
+  storeLink?: string;
+  category: Category;
+  photoUri?: string;
+  createdAt: string;
+  notes?: string;
+  sourceStoreId?: string;
+};
+
 export type RankingMap = Record<Category, string[]>;
 
 export type Store = {

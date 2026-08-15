@@ -1,10 +1,10 @@
-import { RankingMap } from "../types";
-import { Purchase } from "../types";
+import { Purchase, RankingMap, WantedItem } from "../types";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 export type PersistedAppState = {
   purchases: Purchase[];
   rankings: RankingMap;
+  wants?: WantedItem[];
 };
 
 async function currentUserId() {
@@ -26,16 +26,30 @@ export async function loadDatabaseState(): Promise<PersistedAppState | null> {
 
   const { data, error } = await supabase
     .from("user_app_state")
-    .select("purchases, rankings")
+    .select("purchases, rankings, wants")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    const fallback = await supabase
+      .from("user_app_state")
+      .select("purchases, rankings")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (fallback.error) throw error;
+    if (!fallback.data) return null;
+    return {
+      purchases: fallback.data.purchases as Purchase[],
+      rankings: fallback.data.rankings as RankingMap,
+      wants: [],
+    };
+  }
   if (!data) return null;
 
   return {
     purchases: data.purchases as Purchase[],
     rankings: data.rankings as RankingMap,
+    wants: (data.wants as WantedItem[] | null) ?? [],
   };
 }
 
@@ -45,12 +59,19 @@ export async function saveDatabaseState(state: PersistedAppState) {
   const userId = await currentUserId();
   if (!userId) return;
 
-  const { error } = await supabase.from("user_app_state").upsert({
+  const payload = {
     user_id: userId,
     purchases: state.purchases,
     rankings: state.rankings,
+    wants: state.wants ?? [],
     updated_at: new Date().toISOString(),
-  });
+  };
 
-  if (error) throw error;
+  const { error } = await supabase.from("user_app_state").upsert(payload);
+
+  if (error) {
+    const { wants: _wants, ...fallbackPayload } = payload;
+    const fallback = await supabase.from("user_app_state").upsert(fallbackPayload);
+    if (fallback.error) throw error;
+  }
 }

@@ -21,9 +21,9 @@ import {
 
 import NycMap from "./src/components/NycMap";
 import { loadDatabaseState, saveDatabaseState } from "./src/data/database";
-import { CATEGORIES, CATEGORY_EMOJI, friendFeed, starterPurchases, starterRankings, stores } from "./src/data/seed";
+import { CATEGORIES, CATEGORY_EMOJI, friendFeed, starterPurchases, starterRankings, starterWants, stores } from "./src/data/seed";
 import { colors } from "./src/theme";
-import { Category, ComparisonSession, FeedEvent, Purchase, Store } from "./src/types";
+import { Category, ComparisonSession, FeedEvent, Purchase, Store, WantedItem } from "./src/types";
 import { distanceMiles } from "./src/utils/geo";
 import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizePurchases, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
 
@@ -32,6 +32,7 @@ const DEFAULT_LOCATION = { lat: 40.7359, lng: -73.9911, label: "Union Square dem
 
 type TabKey = "feed" | "add" | "search" | "map" | "profile";
 type DraftPurchase = {
+  mode: "bought" | "want";
   itemName: string;
   storeName: string;
   storeLink: string;
@@ -50,6 +51,7 @@ const tabs: { key: TabKey; label: string; icon: string }[] = [
 ];
 
 const emptyDraft = (): DraftPurchase => ({
+  mode: "bought",
   itemName: "",
   storeName: "",
   storeLink: "",
@@ -62,6 +64,7 @@ export default function App() {
   const [selectedTab, setSelectedTab] = useState<TabKey>("feed");
   const [purchases, setPurchases] = useState<Purchase[]>(starterPurchases);
   const [rankings, setRankings] = useState(starterRankings);
+  const [wants, setWants] = useState<WantedItem[]>(starterWants);
   const [draft, setDraft] = useState<DraftPurchase>(emptyDraft());
   const [comparison, setComparison] = useState<ComparisonSession | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -81,7 +84,7 @@ export default function App() {
         if (!isMounted) return;
 
         const localState = raw
-          ? (JSON.parse(raw) as { purchases?: Purchase[]; rankings?: typeof starterRankings })
+          ? (JSON.parse(raw) as { purchases?: Purchase[]; rankings?: typeof starterRankings; wants?: WantedItem[] })
           : null;
         const databaseState = await loadDatabaseState();
         const savedState = databaseState ?? localState;
@@ -90,10 +93,11 @@ export default function App() {
           const cleanedPurchases = sanitizePurchases(savedState.purchases);
           setPurchases(cleanedPurchases);
           setRankings(sanitizeRankings(cleanedPurchases, savedState.rankings));
+          setWants(savedState.wants ?? []);
         }
 
         if (!databaseState && localState?.purchases && localState.rankings) {
-          await saveDatabaseState({ purchases: localState.purchases, rankings: localState.rankings });
+          await saveDatabaseState({ purchases: localState.purchases, rankings: localState.rankings, wants: localState.wants ?? [] });
         }
       })
       .catch(() => {
@@ -110,14 +114,14 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated) return;
-    const state = { purchases, rankings };
+    const state = { purchases, rankings, wants };
     Promise.all([
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)),
       saveDatabaseState(state),
     ]).catch(() => {
       showToast("Could not sync this change. It will retry next time.");
     });
-  }, [hydrated, purchases, rankings]);
+  }, [hydrated, purchases, rankings, wants]);
 
   useEffect(() => {
     if (!toast) return;
@@ -162,6 +166,7 @@ export default function App() {
   const localPurchaseCount = purchases.filter((purchase) => purchase.isLocalStore).length;
   const rankedCount = CATEGORIES.reduce((sum, category) => sum + rankings[category].length, 0);
   const topItems = topLifetimePurchases(purchases, rankings, 8);
+  const wantedStoreIds = useMemo(() => new Set(wants.map((want) => want.sourceStoreId).filter((id): id is string => !!id)), [wants]);
 
   function showToast(message: string) {
     setToast(message);
@@ -199,11 +204,35 @@ export default function App() {
     showToast("Sample photo added for the demo.");
   }
 
+  function saveWant(itemName: string, storeName: string) {
+    const matchedStore = stores.find((store) => store.name.toLowerCase() === storeName.toLowerCase());
+    const want: WantedItem = {
+      id: `w-${Date.now()}`,
+      itemName,
+      storeName,
+      storeLink: draft.storeLink.trim() || matchedStore?.link,
+      category: draft.category,
+      photoUri: draft.photoUri || matchedStore?.photoUri,
+      notes: draft.notes.trim() || undefined,
+      createdAt: new Date().toISOString(),
+      sourceStoreId: matchedStore?.id,
+    };
+
+    setWants((current) => [want, ...current.filter((existing) => existing.id !== want.id)]);
+    setDraft(emptyDraft());
+    showToast(`${want.itemName} was added to your want-to-buy list.`);
+  }
+
   function submitPurchase() {
     const itemName = draft.itemName.trim();
     const storeName = draft.storeName.trim();
     if (!itemName || !storeName) {
-      showToast("Add an item name and store to log the purchase.");
+      showToast("Add an item name and store first.");
+      return;
+    }
+
+    if (draft.mode === "want") {
+      saveWant(itemName, storeName);
       return;
     }
 
@@ -283,6 +312,7 @@ export default function App() {
   async function resetDemoData() {
     setPurchases(starterPurchases);
     setRankings(starterRankings);
+    setWants(starterWants);
     setComparison(null);
     setDraft(emptyDraft());
     await AsyncStorage.removeItem(STORAGE_KEY);
@@ -334,7 +364,7 @@ export default function App() {
           <View style={styles.statRow}>
             <StatCard icon="trophy-outline" label="Ranked" value={String(rankedCount)} />
             <StatCard icon="storefront-outline" label="Local logs" value={String(localPurchaseCount)} />
-            <StatCard icon="grid-outline" label="Categories" value={String(CATEGORIES.filter((category) => rankings[category].length > 0).length)} />
+            <StatCard icon="bookmark-outline" label="Wants" value={String(wants.length)} />
           </View>
           <Pressable style={styles.primaryButton} onPress={() => setSelectedTab("add")}>
             <Ionicons name="camera-outline" size={19} color="white" />
@@ -355,16 +385,81 @@ export default function App() {
     if (match) setSelectedShop(match);
   }
 
+  function saveStoreWant(store: Store) {
+    const alreadySaved = wants.some((want) => want.sourceStoreId === store.id && want.itemName === `Shop ${store.name}`);
+    if (alreadySaved) {
+      showToast(`${store.name} is already on your want-to-shop list.`);
+      return;
+    }
+
+    const want: WantedItem = {
+      id: `w-${Date.now()}`,
+      itemName: `Shop ${store.name}`,
+      storeName: store.name,
+      storeLink: store.link,
+      category: store.category,
+      photoUri: store.photoUri,
+      notes: `Saved from the map to visit ${store.neighborhood}.`,
+      createdAt: new Date().toISOString(),
+      sourceStoreId: store.id,
+    };
+    setWants((current) => [want, ...current]);
+    showToast(`${store.name} was added to your want-to-shop list.`);
+  }
+
+  function startLogFromStore(store: Store) {
+    setDraft({
+      ...emptyDraft(),
+      mode: "bought",
+      storeName: store.name,
+      storeLink: store.link ?? "",
+      category: store.category,
+    });
+    setSelectedShop(null);
+    setSelectedTab("add");
+  }
+
+  function convertWantToDraft(want: WantedItem) {
+    setDraft({
+      ...emptyDraft(),
+      mode: "bought",
+      itemName: want.itemName.startsWith("Shop ") ? "" : want.itemName,
+      storeName: want.storeName,
+      storeLink: want.storeLink ?? "",
+      category: want.category,
+      notes: want.notes ?? "",
+      photoUri: want.photoUri,
+    });
+    setWants((current) => current.filter((item) => item.id !== want.id));
+    setSelectedShop(null);
+    setSelectedTab("add");
+    showToast("Want moved into the purchase logger.");
+  }
+
   function renderAdd() {
     const categoryCount = rankings[draft.category].length;
+    const isWantMode = draft.mode === "want";
     return (
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
         <View style={styles.card}>
           <Text style={styles.cardKicker}>Purchase log</Text>
-          <Text style={styles.cardTitle}>What did you buy?</Text>
+          <Text style={styles.cardTitle}>{isWantMode ? "What do you want to buy?" : "What did you buy?"}</Text>
           <Text style={styles.cardSubtitle}>
-            Add a photo, store, and category. Then the app asks binary comparison questions to bubble it into your ranked shelf.
+            {isWantMode
+              ? "Save things or stores you want to check out, like Beli's want-to-go list but for shopping."
+              : "Add a photo, store, and category. Then the app asks binary comparison questions to bubble it into your ranked shelf."}
           </Text>
+
+          <View style={styles.segmentedControl}>
+            <Pressable style={[styles.segmentButton, !isWantMode && styles.segmentButtonActive]} onPress={() => updateDraft({ mode: "bought" })}>
+              <Ionicons name="checkmark-circle-outline" size={17} color={!isWantMode ? "white" : colors.ink} />
+              <Text style={[styles.segmentText, !isWantMode && styles.segmentTextActive]}>Bought</Text>
+            </Pressable>
+            <Pressable style={[styles.segmentButton, isWantMode && styles.segmentButtonActive]} onPress={() => updateDraft({ mode: "want" })}>
+              <Ionicons name="bookmark-outline" size={17} color={isWantMode ? "white" : colors.ink} />
+              <Text style={[styles.segmentText, isWantMode && styles.segmentTextActive]}>Want</Text>
+            </Pressable>
+          </View>
 
           <View style={styles.photoPickerRow}>
             <PhotoPreview uri={draft.photoUri} category={draft.category} size="large" />
@@ -407,10 +502,10 @@ export default function App() {
 
           <View style={styles.twoColumnRow}>
             <View style={styles.flexOne}>
-              <FormLabel label="Price" />
+              <FormLabel label={isWantMode ? "Target price" : "Price"} />
               <TextInput
                 style={styles.input}
-                placeholder="$48"
+                placeholder={isWantMode ? "Optional" : "$48"}
                 placeholderTextColor={colors.muted}
                 keyboardType="decimal-pad"
                 value={draft.price}
@@ -419,7 +514,7 @@ export default function App() {
             </View>
             <View style={styles.flexOne}>
               <FormLabel label="Category" />
-              <Text style={styles.comparisonHint}>{categoryCount} already ranked</Text>
+              <Text style={styles.comparisonHint}>{isWantMode ? `${wants.length} wants saved` : `${categoryCount} already ranked`}</Text>
             </View>
           </View>
 
@@ -436,16 +531,17 @@ export default function App() {
           />
 
           <Pressable style={styles.primaryButton} onPress={submitPurchase}>
-            <Ionicons name="git-compare-outline" size={18} color="white" />
-            <Text style={styles.primaryButtonText}>Save & rank</Text>
+            <Ionicons name={isWantMode ? "bookmark-outline" : "git-compare-outline"} size={18} color="white" />
+            <Text style={styles.primaryButtonText}>{isWantMode ? "Save to wants" : "Save & rank"}</Text>
           </Pressable>
         </View>
 
         <View style={styles.infoStrip}>
           <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
           <Text style={styles.infoStripText}>
-            Binary insertion means item #{categoryCount + 1} takes about {Math.max(1, Math.ceil(Math.log2(categoryCount + 1)))} quick comparison
-            {Math.max(1, Math.ceil(Math.log2(categoryCount + 1))) === 1 ? "" : "s"}.
+            {isWantMode
+              ? "Wants work like a shopping version of Beli's want-to-go list. Convert one into a ranked purchase after you buy it."
+              : `Binary insertion means item #${categoryCount + 1} takes about ${Math.max(1, Math.ceil(Math.log2(categoryCount + 1)))} quick comparison${Math.max(1, Math.ceil(Math.log2(categoryCount + 1))) === 1 ? "" : "s"}.`}
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -466,6 +562,16 @@ export default function App() {
         : "Awaiting rank",
       body: purchase.notes,
     }));
+    const wantRows = wants.map((want) => ({
+      id: `want-${want.id}`,
+      type: "Want to buy",
+      title: want.itemName,
+      subtitle: want.storeName,
+      category: want.category,
+      image: want.photoUri,
+      meta: "Saved for later",
+      body: want.notes,
+    }));
     const friendRows = friendFeed.map((event) => ({
       id: `friend-${event.id}`,
       type: `${event.actor}'s shelf`,
@@ -482,12 +588,12 @@ export default function App() {
       title: store.name,
       subtitle: `${store.neighborhood}, ${store.borough}`,
       category: store.category,
-      image: undefined,
+      image: store.photoUri,
       meta: store.tags.join(" • "),
       body: store.description,
     }));
 
-    const rows = [...purchaseRows, ...friendRows, ...storeRows].filter((row) => {
+    const rows = [...purchaseRows, ...wantRows, ...friendRows, ...storeRows].filter((row) => {
       const categoryMatch = searchCategory === "All" || row.category === searchCategory;
       const text = `${row.title} ${row.subtitle} ${row.meta} ${row.body ?? ""}`.toLowerCase();
       return categoryMatch && (!normalized || text.includes(normalized));
@@ -508,7 +614,7 @@ export default function App() {
           <CategoryPicker selected={searchCategory} onSelect={setSearchCategory} includeAll />
         </View>
 
-        <SectionHeader title={`${rows.length} result${rows.length === 1 ? "" : "s"}`} action="Your shelf + friends + stores" />
+        <SectionHeader title={`${rows.length} result${rows.length === 1 ? "" : "s"}`} action="Shelf + wants + friends + stores" />
         {rows.length === 0 ? (
           <EmptyState icon="search-outline" title="No matches yet" body="Try another category or log a purchase to build your searchable shelves." />
         ) : (
@@ -569,6 +675,8 @@ export default function App() {
       Linking.openURL(url);
     };
     const shopFeed = feedEvents.filter((event) => event.storeName.toLowerCase() === store.name.toLowerCase());
+    const shopWants = wants.filter((want) => want.storeName.toLowerCase() === store.name.toLowerCase());
+    const isWantedStore = wantedStoreIds.has(store.id);
 
     return (
       <View style={styles.screen}>
@@ -589,6 +697,16 @@ export default function App() {
             <Ionicons name="chevron-forward" size={16} color={colors.muted} />
           </Pressable>
           <Text style={styles.resultBody}>{store.description}</Text>
+          <View style={styles.shopActionRow}>
+            <Pressable style={styles.shopPrimaryAction} onPress={() => startLogFromStore(store)}>
+              <Ionicons name="bag-add-outline" size={17} color="white" />
+              <Text style={styles.shopPrimaryActionText}>Log purchase</Text>
+            </Pressable>
+            <Pressable style={styles.shopSecondaryAction} onPress={() => saveStoreWant(store)}>
+              <Ionicons name={isWantedStore ? "bookmark" : "bookmark-outline"} size={17} color={colors.ink} />
+              <Text style={styles.shopSecondaryActionText}>{isWantedStore ? "Wanted" : "Want"}</Text>
+            </Pressable>
+          </View>
           <View style={styles.tagRow}>
             {store.tags.map((tag) => (
               <Text key={tag} style={styles.tag}>{tag}</Text>
@@ -601,6 +719,13 @@ export default function App() {
           <EmptyState icon="bag-handle-outline" title="Nothing logged yet" body="No purchases have been logged at this store yet." />
         ) : (
           shopFeed.map((event) => <FeedCard key={event.id} event={event} />)
+        )}
+
+        <SectionHeader title="Want to buy here" action={`${shopWants.length} saved`} />
+        {shopWants.length === 0 ? (
+          <EmptyState icon="bookmark-outline" title="No wants saved" body="Tap Want to save this shop, or save a specific item from the Log tab." />
+        ) : (
+          shopWants.map((want) => <WantRow key={want.id} want={want} onBought={() => convertWantToDraft(want)} />)
         )}
       </View>
     );
@@ -618,7 +743,7 @@ export default function App() {
           <View style={styles.statRow}>
             <StatCard icon="bag-handle-outline" label="Purchases" value={String(purchases.length)} />
             <StatCard icon="trophy-outline" label="Ranked" value={String(rankedCount)} />
-            <StatCard icon="heart-outline" label="Worth it" value={String(topItems.filter((item) => item.score >= 8).length)} />
+            <StatCard icon="bookmark-outline" label="Wants" value={String(wants.length)} />
           </View>
         </View>
 
@@ -632,6 +757,13 @@ export default function App() {
             eyebrow={`#${index + 1} overall`}
           />
         ))}
+
+        <SectionHeader title="Want to buy" action={`${wants.length} saved`} />
+        {wants.length === 0 ? (
+          <EmptyState icon="bookmark-outline" title="No wants yet" body="Use Want mode in Log or save stores from the map to build your shopping shortlist." />
+        ) : (
+          wants.map((want) => <WantRow key={want.id} want={want} onBought={() => convertWantToDraft(want)} />)
+        )}
 
         <SectionHeader title="Shelves by category" action="Top 10 each" />
         {CATEGORIES.map((category) => {
@@ -703,7 +835,14 @@ export default function App() {
             {tabs.map((tab) => {
               const isActive = selectedTab === tab.key;
               return (
-                <Pressable key={tab.key} style={[styles.tabItem, isActive && styles.tabItemActive]} onPress={() => setSelectedTab(tab.key)}>
+                <Pressable
+                  key={tab.key}
+                  style={[styles.tabItem, isActive && styles.tabItemActive]}
+                  onPress={() => {
+                    setSelectedShop(null);
+                    setSelectedTab(tab.key);
+                  }}
+                >
                   <Ionicons name={tab.icon as keyof typeof Ionicons.glyphMap} size={21} color={isActive ? colors.ink : colors.muted} />
                   <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab.label}</Text>
                 </Pressable>
@@ -869,6 +1008,23 @@ function RankedRow({ purchase, rank, score, eyebrow }: { purchase: Purchase; ran
       <View style={styles.scorePill}>
         <Text style={styles.scoreText}>{score}</Text>
       </View>
+    </View>
+  );
+}
+
+function WantRow({ want, onBought }: { want: WantedItem; onBought: () => void }) {
+  return (
+    <View style={styles.wantRow}>
+      <PhotoPreview uri={want.photoUri} category={want.category} size="small" />
+      <View style={styles.rankedContent}>
+        <Text style={styles.resultType}>Want to buy</Text>
+        <Text style={styles.rankedTitle}>{want.itemName}</Text>
+        <Text style={styles.rankedMeta}>{want.storeName} • saved {timeAgo(want.createdAt)}</Text>
+        {!!want.notes && <Text style={styles.wantNote}>{want.notes}</Text>}
+      </View>
+      <Pressable style={styles.boughtButtonSmall} onPress={onBought}>
+        <Ionicons name="checkmark" size={16} color="white" />
+      </Pressable>
     </View>
   );
 }
@@ -1185,6 +1341,34 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 8,
   },
+  segmentedControl: {
+    flexDirection: "row",
+    backgroundColor: colors.soft2,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 4,
+    gap: 4,
+  },
+  segmentButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 14,
+    paddingVertical: 11,
+  },
+  segmentButtonActive: {
+    backgroundColor: colors.ink,
+  },
+  segmentText: {
+    color: colors.ink,
+    fontWeight: "900",
+  },
+  segmentTextActive: {
+    color: "white",
+  },
   photoBase: {
     backgroundColor: colors.soft,
     borderRadius: 18,
@@ -1426,6 +1610,41 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: "700",
   },
+  shopActionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  shopPrimaryAction: {
+    flex: 1,
+    backgroundColor: colors.accent,
+    borderRadius: 16,
+    paddingVertical: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  shopPrimaryActionText: {
+    color: "white",
+    fontWeight: "900",
+  },
+  shopSecondaryAction: {
+    minWidth: 110,
+    backgroundColor: colors.soft2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  shopSecondaryActionText: {
+    color: colors.ink,
+    fontWeight: "900",
+  },
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1506,6 +1725,16 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 8,
   },
+  wantRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 22,
+  },
   rankBubble: {
     width: 32,
     height: 32,
@@ -1530,6 +1759,21 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontWeight: "700",
     marginTop: 2,
+  },
+  wantNote: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  boughtButtonSmall: {
+    width: 38,
+    height: 38,
+    borderRadius: 15,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
   },
   scorePill: {
     minWidth: 48,

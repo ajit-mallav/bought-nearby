@@ -1,4 +1,4 @@
-import { Category, FeedEvent, Purchase, RankingMap, Store } from "../types";
+import { Category, FeedEvent, Purchase, RankingMap, Store, WantedItem } from "../types";
 
 export const CATEGORIES: Category[] = ["Clothing"];
 
@@ -67,6 +67,33 @@ export const starterPurchases: Purchase[] = [
 export const starterRankings: RankingMap = {
   Clothing: ["p-linen-set", "p-jacket", "p-oxford", "p-flannel"],
 };
+
+export const starterWants: WantedItem[] = [
+  {
+    id: "w-trench",
+    itemName: "Cropped trench coat",
+    storeName: "Buffalo Exchange",
+    storeLink: "https://www.buffaloexchange.com",
+    category: "Clothing",
+    createdAt: daysAgo(1.1),
+    sourceStoreId: "s-buffalo",
+    photoUri:
+      "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=900&q=80",
+    notes: "Want to check the Williamsburg rack this weekend.",
+  },
+  {
+    id: "w-tailoring",
+    itemName: "Lightweight tailored overshirt",
+    storeName: "Rothmans",
+    storeLink: "https://www.rothmansny.com",
+    category: "Clothing",
+    createdAt: daysAgo(4),
+    sourceStoreId: "s-rothmans",
+    photoUri:
+      "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=900&q=80",
+    notes: "Saved from the map because it is close to Union Square.",
+  },
+];
 
 export const friendFeed: FeedEvent[] = [
   {
