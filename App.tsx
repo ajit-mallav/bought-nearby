@@ -31,9 +31,9 @@ import {
 
 import NycMap from "./src/components/NycMap";
 import { loadDatabaseState, saveDatabaseState } from "./src/data/database";
-import { CATEGORIES, STYLE_FILTERS, friendFeed, starterPurchases, starterRankings, starterWants, stores } from "./src/data/seed";
+import { CATEGORIES, ITEM_TYPES, STYLE_FILTERS, friendFeed, starterPurchases, starterRankings, starterWants, stores } from "./src/data/seed";
 import { colors, feedColors, fonts } from "./src/theme";
-import { Category, ComparisonSession, FeedEvent, Purchase, Store, StyleFilter, WantedItem } from "./src/types";
+import { Category, ComparisonSession, FeedEvent, ItemType, Purchase, Store, StyleFilter, WantedItem } from "./src/types";
 import { distanceMiles } from "./src/utils/geo";
 import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizePurchases, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
 
@@ -49,6 +49,7 @@ type DraftPurchase = {
   price: string;
   category: Category;
   styleTag: StyleFilter;
+  itemType: ItemType;
   notes: string;
   photoUri?: string;
 };
@@ -69,6 +70,7 @@ const emptyDraft = (): DraftPurchase => ({
   price: "",
   category: "Clothing",
   styleTag: STYLE_FILTERS[0],
+  itemType: ITEM_TYPES[0],
   notes: "",
 });
 
@@ -121,12 +123,25 @@ function BoughtNearbyApp() {
   const [rankings, setRankings] = useState(starterRankings);
   const [wants, setWants] = useState<WantedItem[]>(starterWants);
   const [draft, setDraft] = useState<DraftPurchase>(emptyDraft());
+  const [itemTypeDropdownOpen, setItemTypeDropdownOpen] = useState(false);
   const [comparison, setComparison] = useState<ComparisonSession | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchStyle, setSearchStyle] = useState<StyleFilter | "All">("All");
+  const [searchPriceTiers, setSearchPriceTiers] = useState<Set<1 | 2 | 3 | 4>>(new Set());
+  const [searchMinRating, setSearchMinRating] = useState<number | null>(null);
+  const [activeSearchFilter, setActiveSearchFilter] = useState<"type" | "cost" | "rating" | null>(null);
   const [mapStyle, setMapStyle] = useState<StyleFilter | "All">("All");
+
+  function togglePriceTier(tier: 1 | 2 | 3 | 4) {
+    setSearchPriceTiers((current) => {
+      const next = new Set(current);
+      if (next.has(tier)) next.delete(tier);
+      else next.add(tier);
+      return next;
+    });
+  }
   const [userLocation, setUserLocation] = useState(DEFAULT_LOCATION);
   const [locationMessage, setLocationMessage] = useState("Showing a demo starting point in Union Square.");
   const [selectedShop, setSelectedShop] = useState<Store | null>(null);
@@ -280,6 +295,7 @@ function BoughtNearbyApp() {
       storeLink: draft.storeLink.trim() || matchedStore?.link,
       category: draft.category,
       styleTag: draft.styleTag,
+      itemType: draft.itemType,
       photoUri: draft.photoUri || matchedStore?.photoUri,
       notes: draft.notes.trim() || undefined,
       createdAt: new Date().toISOString(),
@@ -314,6 +330,7 @@ function BoughtNearbyApp() {
       price: Number.isFinite(cleanPrice) && cleanPrice > 0 ? cleanPrice : undefined,
       category: draft.category,
       styleTag: draft.styleTag,
+      itemType: draft.itemType,
       photoUri: draft.photoUri,
       notes: draft.notes.trim() || undefined,
       createdAt: new Date().toISOString(),
@@ -514,6 +531,7 @@ function BoughtNearbyApp() {
       storeLink: want.storeLink ?? "",
       category: want.category,
       styleTag: want.styleTag ?? STYLE_FILTERS[0],
+      itemType: want.itemType ?? ITEM_TYPES[0],
       notes: want.notes ?? "",
       photoUri: want.photoUri,
     });
@@ -524,7 +542,6 @@ function BoughtNearbyApp() {
   }
 
   function renderAdd() {
-    const categoryCount = rankings[draft.category].length;
     const isWantMode = draft.mode === "want";
     return (
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
@@ -600,16 +617,34 @@ function BoughtNearbyApp() {
               />
             </View>
             <View style={styles.flexOne}>
-              <FormLabel label="Style" />
-              <Text style={styles.comparisonHint}>{isWantMode ? `${wants.length} wants saved` : `${categoryCount} already ranked`}</Text>
+              <FormLabel label="Clothing Item" />
+              <Pressable style={styles.filterButton} onPress={() => setItemTypeDropdownOpen(true)}>
+                <Text style={styles.filterButtonText} numberOfLines={1}>{draft.itemType}</Text>
+                <Ionicons name="chevron-down" size={14} color={colors.ink} />
+              </Pressable>
             </View>
           </View>
 
-          <StylePicker
-            selected={draft.styleTag}
-            onSelect={(style) => style !== "All" && updateDraft({ styleTag: style })}
-            includeAll={false}
-          />
+          <Modal visible={itemTypeDropdownOpen} transparent animationType="fade" onRequestClose={() => setItemTypeDropdownOpen(false)}>
+            <Pressable style={styles.filterModalBackdrop} onPress={() => setItemTypeDropdownOpen(false)}>
+              <Pressable style={styles.filterSheet} onPress={(event) => event.stopPropagation()}>
+                <Text style={styles.filterSheetTitle}>Clothing Item</Text>
+                {ITEM_TYPES.map((option) => (
+                  <Pressable
+                    key={option}
+                    style={styles.filterOptionRow}
+                    onPress={() => {
+                      updateDraft({ itemType: option });
+                      setItemTypeDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.filterOptionText}>{option}</Text>
+                    {draft.itemType === option && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                  </Pressable>
+                ))}
+              </Pressable>
+            </Pressable>
+          </Modal>
 
           <FormLabel label="Notes" />
           <TextInput
@@ -640,15 +675,15 @@ function BoughtNearbyApp() {
       }
       setSelectedTab(fallbackTab);
     };
-    const tagsForStoreName = (storeName: string) =>
-      stores.find((candidate) => candidate.name.toLowerCase() === storeName.toLowerCase())?.tags ?? [];
+    const storeForName = (storeName: string) =>
+      stores.find((candidate) => candidate.name.toLowerCase() === storeName.toLowerCase());
     const purchaseRows = purchases.map((purchase) => ({
       id: `purchase-${purchase.id}`,
       type: "Your shelf",
       title: purchase.itemName,
       subtitle: purchase.storeName,
       category: purchase.category,
-      styleTags: tagsForStoreName(purchase.storeName),
+      matchStore: storeForName(purchase.storeName),
       image: purchase.photoUri,
       meta: rankOf(purchase.id, purchase.category, rankings)
         ? `#${rankOf(purchase.id, purchase.category, rankings)} • ${scoreOf(purchase.id, purchase.category, rankings)} score`
@@ -662,7 +697,7 @@ function BoughtNearbyApp() {
       title: want.itemName,
       subtitle: want.storeName,
       category: want.category,
-      styleTags: tagsForStoreName(want.storeName),
+      matchStore: storeForName(want.storeName),
       image: want.photoUri,
       meta: "Saved for later",
       body: want.notes,
@@ -674,7 +709,7 @@ function BoughtNearbyApp() {
       title: event.itemName,
       subtitle: event.storeName,
       category: event.category,
-      styleTags: tagsForStoreName(event.storeName),
+      matchStore: storeForName(event.storeName),
       image: event.photoUri,
       meta: `#${event.rank} • ${event.score} score`,
       body: event.isLocalStore ? "Local store find" : undefined,
@@ -686,7 +721,7 @@ function BoughtNearbyApp() {
       title: store.name,
       subtitle: `${store.neighborhood}, ${store.borough}`,
       category: store.category,
-      styleTags: store.tags,
+      matchStore: store,
       image: store.photoUri,
       meta: store.tags.join(" • "),
       body: store.description,
@@ -694,9 +729,11 @@ function BoughtNearbyApp() {
     }));
 
     const rows = [...purchaseRows, ...wantRows, ...friendRows, ...storeRows].filter((row) => {
-      const styleMatch = storeMatchesStyle(row.styleTags, searchStyle);
+      const styleMatch = storeMatchesStyle(row.matchStore?.tags ?? [], searchStyle);
+      const priceMatch = searchPriceTiers.size === 0 || (!!row.matchStore && searchPriceTiers.has(row.matchStore.priceTier));
+      const ratingMatch = searchMinRating === null || (!!row.matchStore && row.matchStore.rating * 2 > searchMinRating);
       const text = `${row.title} ${row.subtitle} ${row.meta} ${row.body ?? ""}`.toLowerCase();
-      return styleMatch && (!normalized || text.includes(normalized));
+      return styleMatch && priceMatch && ratingMatch && (!normalized || text.includes(normalized));
     });
 
     return (
@@ -711,8 +748,87 @@ function BoughtNearbyApp() {
             value={searchTerm}
             onChangeText={setSearchTerm}
           />
-          <StylePicker selected={searchStyle} onSelect={setSearchStyle} />
+          <View style={styles.searchFilterRow}>
+            <Pressable style={styles.filterButton} onPress={() => setActiveSearchFilter("type")}>
+              <Text style={styles.filterButtonText} numberOfLines={1}>{searchStyle === "All" ? "Store Type" : searchStyle}</Text>
+              <Ionicons name="chevron-down" size={14} color={colors.ink} />
+            </Pressable>
+            <Pressable style={styles.filterButton} onPress={() => setActiveSearchFilter("cost")}>
+              <Text style={styles.filterButtonText} numberOfLines={1}>
+                {searchPriceTiers.size === 0
+                  ? "Cost"
+                  : [...searchPriceTiers].sort().map((tier) => "$".repeat(tier)).join(", ")}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color={colors.ink} />
+            </Pressable>
+            <Pressable style={styles.filterButton} onPress={() => setActiveSearchFilter("rating")}>
+              <Text style={styles.filterButtonText} numberOfLines={1}>
+                {searchMinRating === null ? "Rating" : `>${searchMinRating.toFixed(1)}`}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color={colors.ink} />
+            </Pressable>
+          </View>
         </View>
+
+        <Modal visible={activeSearchFilter !== null} transparent animationType="fade" onRequestClose={() => setActiveSearchFilter(null)}>
+          <Pressable style={styles.filterModalBackdrop} onPress={() => setActiveSearchFilter(null)}>
+            <Pressable style={styles.filterSheet} onPress={(event) => event.stopPropagation()}>
+              {activeSearchFilter === "type" && (
+                <>
+                  <Text style={styles.filterSheetTitle}>Store Type</Text>
+                  {(["All", ...STYLE_FILTERS] as (StyleFilter | "All")[]).map((option) => (
+                    <Pressable
+                      key={option}
+                      style={styles.filterOptionRow}
+                      onPress={() => {
+                        setSearchStyle(option);
+                        setActiveSearchFilter(null);
+                      }}
+                    >
+                      <Text style={styles.filterOptionText}>{option}</Text>
+                      {searchStyle === option && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                    </Pressable>
+                  ))}
+                </>
+              )}
+              {activeSearchFilter === "cost" && (
+                <>
+                  <Text style={styles.filterSheetTitle}>Cost</Text>
+                  {([1, 2, 3, 4] as const).map((tier) => {
+                    const active = searchPriceTiers.has(tier);
+                    return (
+                      <Pressable key={tier} style={styles.filterOptionRow} onPress={() => togglePriceTier(tier)}>
+                        <Text style={styles.filterOptionText}>{"$".repeat(tier)}</Text>
+                        {active && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                      </Pressable>
+                    );
+                  })}
+                  <Pressable style={styles.filterDoneButton} onPress={() => setActiveSearchFilter(null)}>
+                    <Text style={styles.filterDoneButtonText}>Done</Text>
+                  </Pressable>
+                </>
+              )}
+              {activeSearchFilter === "rating" && (
+                <>
+                  <Text style={styles.filterSheetTitle}>Store rating</Text>
+                  {[null, 9, 8, 7, 6].map((threshold) => (
+                    <Pressable
+                      key={String(threshold)}
+                      style={styles.filterOptionRow}
+                      onPress={() => {
+                        setSearchMinRating(threshold);
+                        setActiveSearchFilter(null);
+                      }}
+                    >
+                      <Text style={styles.filterOptionText}>{threshold === null ? "All ratings" : `>${threshold.toFixed(1)}`}</Text>
+                      {searchMinRating === threshold && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                    </Pressable>
+                  ))}
+                </>
+              )}
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         <SectionHeader title={`${rows.length} result${rows.length === 1 ? "" : "s"}`} action="Shelf + wants + friends + stores" />
         {rows.length === 0 ? (
@@ -1925,22 +2041,82 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontSize: 16,
   },
+  searchFilterRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  filterButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4,
+    backgroundColor: colors.soft2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  filterButtonText: {
+    flex: 1,
+    color: colors.ink,
+    fontWeight: "800",
+    fontSize: 13,
+  },
+  filterModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(23, 33, 27, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  filterSheet: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 10,
+    gap: 2,
+  },
+  filterSheetTitle: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "900",
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  filterOptionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  filterOptionText: {
+    color: colors.ink,
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  filterDoneButton: {
+    marginTop: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  filterDoneButtonText: {
+    color: "white",
+    fontWeight: "900",
+  },
   twoColumnRow: {
     flexDirection: "row",
     gap: 12,
   },
   flexOne: {
     flex: 1,
-  },
-  comparisonHint: {
-    color: colors.muted,
-    backgroundColor: colors.soft2,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontWeight: "800",
   },
   categoryRow: {
     gap: 8,

@@ -4,6 +4,8 @@ export const CATEGORIES: Category[] = ["Clothing"];
 
 export const STYLE_FILTERS = ["Vintage", "Thrift", "Boutique", "Consignment"] as const;
 
+export const ITEM_TYPES = ["Shirt", "Pants", "Jacket", "Coat", "Hoodie", "Shoes"] as const;
+
 export const emptyRankings = (): RankingMap => ({
   Clothing: [],
 });

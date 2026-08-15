@@ -2,6 +2,8 @@ export type Category = "Clothing";
 
 export type StyleFilter = "Vintage" | "Thrift" | "Boutique" | "Consignment";
 
+export type ItemType = "Shirt" | "Pants" | "Jacket" | "Coat" | "Hoodie" | "Shoes";
+
 export type Purchase = {
   id: string;
   itemName: string;
@@ -10,6 +12,7 @@ export type Purchase = {
   price?: number;
   category: Category;
   styleTag?: StyleFilter;
+  itemType?: ItemType;
   photoUri?: string;
   createdAt: string;
   notes?: string;
@@ -25,6 +28,7 @@ export type WantedItem = {
   storeLink?: string;
   category: Category;
   styleTag?: StyleFilter;
+  itemType?: ItemType;
   photoUri?: string;
   createdAt: string;
   notes?: string;
