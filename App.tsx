@@ -611,15 +611,6 @@ function BoughtNearbyApp() {
             <Text style={styles.primaryButtonText}>{isWantMode ? "Save to wants" : "Save & rank"}</Text>
           </Pressable>
         </View>
-
-        <View style={styles.infoStrip}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
-          <Text style={styles.infoStripText}>
-            {isWantMode
-              ? "Wants work like a shopping version of Beli's want-to-go list. Convert one into a ranked purchase after you buy it."
-              : `Binary insertion means item #${categoryCount + 1} takes about ${Math.max(1, Math.ceil(Math.log2(categoryCount + 1)))} quick comparison${Math.max(1, Math.ceil(Math.log2(categoryCount + 1))) === 1 ? "" : "s"}.`}
-          </Text>
-        </View>
       </KeyboardAvoidingView>
     );
   }
@@ -1989,21 +1980,6 @@ const styles = StyleSheet.create({
   },
   categoryPillTextActive: {
     color: "white",
-  },
-  infoStrip: {
-    flexDirection: "row",
-    gap: 10,
-    backgroundColor: colors.soft2,
-    borderRadius: 20,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  infoStripText: {
-    flex: 1,
-    color: colors.muted,
-    lineHeight: 19,
-    fontWeight: "700",
   },
   resultCard: {
     backgroundColor: colors.surface,
