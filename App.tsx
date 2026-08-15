@@ -1365,7 +1365,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentInner: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 32,
     paddingBottom: 24,
   },
   screen: {
