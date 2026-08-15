@@ -1374,7 +1374,6 @@ const styles = StyleSheet.create({
   homeScreen: {
     gap: 16,
     paddingTop: 8,
-    backgroundColor: feedColors.background,
   },
   homeSearchBar: {
     flexDirection: "row",
