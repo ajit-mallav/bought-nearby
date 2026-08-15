@@ -22,6 +22,7 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text as NativeText,
   TextInput,
@@ -38,6 +39,18 @@ import { distanceMiles } from "./src/utils/geo";
 import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizePurchases, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
 
 const STORAGE_KEY = "@bought-nearby:v1";
+const PROFILE_KEY = "@bought-nearby:profile:v1";
+
+type ProfileSection = "bought" | "wants" | "recs";
+type ProfileInfo = {
+  name: string;
+  handle: string;
+  neighborhood: string;
+  avatarUri?: string;
+  goal2026?: number;
+};
+
+const defaultProfile: ProfileInfo = { name: "Tej Chakravarthy", handle: "Tejchak", neighborhood: "" };
 const DEFAULT_LOCATION = { lat: 40.7359, lng: -73.9911, label: "Union Square demo location" };
 
 type TabKey = "feed" | "add" | "search" | "map" | "profile";
@@ -171,6 +184,16 @@ function BoughtNearbyApp() {
     });
   }
 
+  const [profile, setProfile] = useState<ProfileInfo>(defaultProfile);
+  const [profileSection, setProfileSection] = useState<ProfileSection | null>(null);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editDraft, setEditDraft] = useState<ProfileInfo>(defaultProfile);
+  const [friendsModal, setFriendsModal] = useState<"followers" | "following" | null>(null);
+  const [leaderboardVisible, setLeaderboardVisible] = useState(false);
+  const [customGoalOpen, setCustomGoalOpen] = useState(false);
+  const [customGoalValue, setCustomGoalValue] = useState("");
+
   useEffect(() => {
     let isMounted = true;
 
@@ -219,6 +242,19 @@ function BoughtNearbyApp() {
   }, [hydrated, purchases, rankings, wants]);
 
   useEffect(() => {
+    AsyncStorage.getItem(PROFILE_KEY)
+      .then((raw) => {
+        if (raw) setProfile({ ...defaultProfile, ...(JSON.parse(raw) as Partial<ProfileInfo>) });
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile)).catch(() => {});
+  }, [hydrated, profile]);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 2600);
     return () => clearTimeout(timer);
@@ -264,6 +300,41 @@ function BoughtNearbyApp() {
   const rankedCount = CATEGORIES.reduce((sum, category) => sum + rankings[category].length, 0);
   const topItems = topLifetimePurchases(purchases, rankings, 8);
   const wantedStoreIds = useMemo(() => new Set(wants.map((want) => want.sourceStoreId).filter((id): id is string => !!id)), [wants]);
+
+  const friendProfiles = useMemo(() => {
+    const latestByActor = new Map<string, FeedEvent>();
+    for (const event of friendFeed) {
+      const current = latestByActor.get(event.actor);
+      if (!current || +new Date(event.createdAt) > +new Date(current.createdAt)) latestByActor.set(event.actor, event);
+    }
+    return [...latestByActor.values()];
+  }, []);
+
+  const leaderboardRows = useMemo(() => {
+    const counts = new Map<string, { avatar: string; count: number }>();
+    for (const event of friendFeed) {
+      const entry = counts.get(event.actor) ?? { avatar: event.avatar, count: 0 };
+      entry.count += 1;
+      counts.set(event.actor, entry);
+    }
+    const rows = [
+      { name: `${profile.name} (you)`, avatar: profile.name.trim()[0]?.toUpperCase() ?? "Y", count: rankedCount, isYou: true },
+      ...[...counts.entries()].map(([name, entry]) => ({ name, avatar: entry.avatar, count: entry.count, isYou: false })),
+    ];
+    return rows.sort((a, b) => b.count - a.count);
+  }, [profile.name, rankedCount]);
+
+  const recommendedStores = useMemo(() => {
+    const boughtFrom = new Set(purchases.map((purchase) => purchase.storeName.toLowerCase()));
+    return stores
+      .filter((store) => !boughtFrom.has(store.name.toLowerCase()))
+      .map((store) => {
+        const friendBuys = friendFeed.filter((event) => event.storeName.toLowerCase() === store.name.toLowerCase()).length;
+        const savedWants = wants.filter((want) => want.storeName.toLowerCase() === store.name.toLowerCase()).length;
+        return { store, match: Math.min(99, Math.round(store.rating * 19 + friendBuys * 2 + savedWants * 3)) };
+      })
+      .sort((a, b) => b.match - a.match);
+  }, [purchases, wants]);
 
   function showToast(message: string) {
     setToast(message);
@@ -418,6 +489,92 @@ function BoughtNearbyApp() {
     setDraft(emptyDraft());
     await AsyncStorage.removeItem(STORAGE_KEY);
     showToast("Demo data reset.");
+  }
+
+  async function shareProfile() {
+    setProfileMenuVisible(false);
+    const top = topItems[0];
+    const shopCount = new Set(purchases.map((purchase) => purchase.storeName)).size;
+    const message = `${profile.name} (@${profile.handle}) on Bought Nearby — ${purchases.length} local finds from ${shopCount} NYC shops.${top ? ` Current #1: ${top.purchase.itemName} from ${top.purchase.storeName}.` : ""}`;
+
+    if (Platform.OS === "web") {
+      const nav = typeof navigator === "undefined" ? undefined : navigator;
+      if (nav?.share) {
+        try {
+          await nav.share({ text: message });
+          return;
+        } catch {
+          // fall through to clipboard
+        }
+      }
+      if (nav?.clipboard) {
+        try {
+          await nav.clipboard.writeText(message);
+          showToast("Profile summary copied to clipboard.");
+          return;
+        } catch {
+          // fall through
+        }
+      }
+      showToast("Sharing is unavailable in this browser.");
+      return;
+    }
+
+    try {
+      await Share.share({ message });
+    } catch {
+      showToast("Sharing is unavailable here.");
+    }
+  }
+
+  function openEditProfile() {
+    setEditDraft({
+      name: profile.name,
+      handle: profile.handle,
+      neighborhood: profile.neighborhood,
+      ...(profile.avatarUri ? { avatarUri: profile.avatarUri } : {}),
+    });
+    setProfileMenuVisible(false);
+    setEditingProfile(true);
+  }
+
+  function saveProfile() {
+    const name = editDraft.name.trim();
+    const handle = editDraft.handle.trim().replace(/^@/, "");
+    if (!name || !handle) {
+      showToast("Name and handle are both required.");
+      return;
+    }
+    setProfile((current) => {
+      const next: ProfileInfo = { ...current, name, handle, neighborhood: editDraft.neighborhood.trim() };
+      if (editDraft.avatarUri) next.avatarUri = editDraft.avatarUri;
+      else delete next.avatarUri;
+      return next;
+    });
+    setEditingProfile(false);
+    showToast("Profile updated.");
+  }
+
+  async function pickAvatar() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        showToast("Photo permission is needed to set an avatar.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      const uri = result.canceled ? undefined : result.assets[0]?.uri;
+      if (uri) setEditDraft((current) => ({ ...current, avatarUri: uri }));
+    } catch {
+      showToast("Photo picker is unavailable in this environment.");
+    }
+  }
+
+  function setYearGoal(goal: number) {
+    setProfile((current) => ({ ...current, goal2026: goal }));
+    setCustomGoalOpen(false);
+    setCustomGoalValue("");
+    showToast(`2026 goal set: ${goal} local finds.`);
   }
 
   async function requestLocation() {
@@ -980,115 +1137,174 @@ function BoughtNearbyApp() {
   }
 
   function renderProfile() {
+    if (profileSection) return renderProfileSection(profileSection);
+
     const streakWeeks = currentStreakWeeks(purchases);
+    const shopCount = new Set(purchases.map((purchase) => purchase.storeName)).size;
+    const yourRank = leaderboardRows.findIndex((row) => row.isYou) + 1;
+    const yearCount = purchases.filter((purchase) => new Date(purchase.createdAt).getFullYear() === new Date().getFullYear()).length;
+    const goalProgress = profile.goal2026 ? Math.min(100, Math.round((yearCount / profile.goal2026) * 100)) : 0;
+
     return (
       <View style={styles.screen}>
         <View style={styles.profileTopBar}>
-          <Text style={styles.profileName}>Tej Chakravarthy</Text>
+          <Text style={styles.profileName}>{profile.name}</Text>
           <View style={styles.profileTopActions}>
-            <Pressable onPress={() => showToast("Profile link copied.")} hitSlop={8}>
+            <Pressable onPress={shareProfile} hitSlop={8}>
               <Ionicons name="share-outline" size={24} color={colors.ink} />
             </Pressable>
-            <Pressable onPress={() => showToast("Settings coming soon.")} hitSlop={8}>
+            <Pressable onPress={() => setProfileMenuVisible(true)} hitSlop={8}>
               <Ionicons name="menu-outline" size={28} color={colors.ink} />
             </Pressable>
           </View>
         </View>
 
         <View style={styles.profileIdentity}>
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>T</Text>
-          </View>
-          <Text style={styles.profileHandle}>@Tejchak</Text>
+          <Pressable onPress={openEditProfile}>
+            {profile.avatarUri ? (
+              <Image source={{ uri: profile.avatarUri }} style={styles.profileAvatarImage} />
+            ) : (
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>{profile.name.trim()[0]?.toUpperCase() ?? "Y"}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Text style={styles.profileHandle}>@{profile.handle}</Text>
           <Text style={styles.profileMemberSince}>Member since August 2025</Text>
-          <Pressable onPress={() => showToast("Neighborhoods coming soon.")}>
-            <Text style={styles.profileAddLink}>+ Add Neighborhood</Text>
+          <Pressable onPress={openEditProfile}>
+            <Text style={styles.profileAddLink}>{profile.neighborhood ? `📍 ${profile.neighborhood}` : "+ Add Neighborhood"}</Text>
           </Pressable>
         </View>
 
         <View style={styles.profileStatsRow}>
-          <View style={styles.profileStat}>
-            <Text style={styles.profileStatValue}>15</Text>
+          <Pressable style={styles.profileStat} onPress={() => setFriendsModal("followers")}>
+            <Text style={styles.profileStatValue}>{friendProfiles.length}</Text>
             <Text style={styles.profileStatLabel}>Followers</Text>
-          </View>
-          <View style={styles.profileStat}>
-            <Text style={styles.profileStatValue}>9</Text>
+          </Pressable>
+          <Pressable style={styles.profileStat} onPress={() => setFriendsModal("following")}>
+            <Text style={styles.profileStatValue}>{friendProfiles.length}</Text>
             <Text style={styles.profileStatLabel}>Following</Text>
-          </View>
-          <View style={styles.profileStat}>
-            <Ionicons name="lock-closed" size={16} color={colors.ink} />
+          </Pressable>
+          <Pressable style={styles.profileStat} onPress={() => setLeaderboardVisible(true)}>
+            <Text style={styles.profileStatValue}>#{yourRank}</Text>
             <Text style={styles.profileStatLabel}>Rank Nearby</Text>
-          </View>
+          </Pressable>
         </View>
 
         <View style={styles.profileButtonRow}>
-          <Pressable style={styles.profilePillButton} onPress={() => showToast("Edit profile coming soon.")}>
+          <Pressable style={styles.profilePillButton} onPress={openEditProfile}>
             <Text style={styles.profilePillButtonText}>Edit profile</Text>
           </Pressable>
-          <Pressable style={styles.profilePillButton} onPress={() => showToast("Profile link copied.")}>
+          <Pressable style={styles.profilePillButton} onPress={shareProfile}>
             <Text style={styles.profilePillButtonText}>Share profile</Text>
-          </Pressable>
-          <Pressable style={styles.profilePillSmall} onPress={() => showToast("More options coming soon.")}>
-            <Ionicons name="caret-down" size={14} color={colors.ink} />
           </Pressable>
         </View>
 
         <View style={styles.profileListGroup}>
-          <View style={styles.profileListRow}>
+          <Pressable style={styles.profileListRow} onPress={() => setProfileSection("bought")}>
             <Ionicons name="checkmark-circle-outline" size={26} color={colors.ink} />
             <Text style={styles.profileListLabel}>Bought</Text>
             <Text style={styles.profileListCount}>{purchases.length}</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-          </View>
+          </Pressable>
           <View style={styles.profileListDivider} />
-          <View style={styles.profileListRow}>
+          <Pressable style={styles.profileListRow} onPress={() => setProfileSection("wants")}>
             <Ionicons name="bookmark" size={23} color={colors.ink} />
             <Text style={styles.profileListLabel}>Want to Buy</Text>
             <Text style={styles.profileListCount}>{wants.length}</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-          </View>
+          </Pressable>
           <View style={styles.profileListDivider} />
-          <View style={styles.profileListRow}>
+          <Pressable style={styles.profileListRow} onPress={() => setProfileSection("recs")}>
             <Ionicons name="heart-circle-outline" size={26} color={colors.ink} />
             <Text style={styles.profileListLabel}>Recs for You</Text>
-            <Ionicons name="lock-closed" size={17} color={colors.muted} />
-          </View>
+            <Text style={styles.profileListCount}>{recommendedStores.length}</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
         </View>
 
         <View style={styles.profileCardRow}>
-          <View style={styles.profileWideCard}>
+          <Pressable style={styles.profileWideCard} onPress={() => setLeaderboardVisible(true)}>
             <Ionicons name="trophy-outline" size={26} color={colors.accentDark} />
             <View>
               <Text style={styles.profileWideCardLabel}>Rank Nearby</Text>
-              <Ionicons name="lock-closed" size={15} color={colors.accentDark} />
+              <Text style={styles.profileWideCardValue}>#{yourRank}</Text>
             </View>
-          </View>
-          <View style={styles.profileWideCard}>
+          </Pressable>
+          <Pressable style={styles.profileWideCard} onPress={() => setProfileSection("bought")}>
             <Ionicons name="flame" size={26} color={colors.accentDark} />
             <View>
               <Text style={styles.profileWideCardLabel}>Current Streak</Text>
               <Text style={styles.profileWideCardValue}>{streakWeeks} week{streakWeeks === 1 ? "" : "s"}</Text>
             </View>
-          </View>
+          </Pressable>
         </View>
 
         <View style={styles.profileGoalCard}>
-          <View style={styles.profileGoalHeader}>
-            <View style={styles.flexOne}>
-              <Text style={styles.profileGoalTitle}>Set your 2026 goal</Text>
-              <Text style={styles.profileGoalBody}>
-                You bought from {new Set(purchases.map((purchase) => purchase.storeName)).size} shops in 2025!{"\n"}How many local finds do you want in 2026?
-              </Text>
-            </View>
-            <Text style={styles.profileGoalEmoji}>🏆</Text>
-          </View>
-          <View style={styles.profileGoalPillRow}>
-            {["20", "50", "100", "Customize"].map((goal) => (
-              <Pressable key={goal} style={styles.profileGoalPill} onPress={() => showToast(goal === "Customize" ? "Custom goals coming soon." : `2026 goal set: ${goal} local finds.`)}>
-                <Text style={styles.profileGoalPillText}>{goal}</Text>
+          {profile.goal2026 ? (
+            <>
+              <View style={styles.profileGoalHeader}>
+                <View style={styles.flexOne}>
+                  <Text style={styles.profileGoalTitle}>2026 goal: {profile.goal2026} local finds</Text>
+                  <Text style={styles.profileGoalBody}>{yearCount} logged this year — {Math.max(profile.goal2026 - yearCount, 0)} to go.</Text>
+                </View>
+                <Text style={styles.profileGoalEmoji}>🏆</Text>
+              </View>
+              <View style={styles.goalProgressTrack}>
+                <View style={[styles.goalProgressFill, { width: `${goalProgress}%` as `${number}%` }]} />
+              </View>
+              <Pressable onPress={() => setProfile(({ goal2026: _dropped, ...rest }) => rest)}>
+                <Text style={styles.profileAddLink}>Change goal</Text>
               </Pressable>
-            ))}
-          </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.profileGoalHeader}>
+                <View style={styles.flexOne}>
+                  <Text style={styles.profileGoalTitle}>Set your 2026 goal</Text>
+                  <Text style={styles.profileGoalBody}>
+                    You bought from {shopCount} shops so far.{"\n"}How many local finds do you want in 2026?
+                  </Text>
+                </View>
+                <Text style={styles.profileGoalEmoji}>🏆</Text>
+              </View>
+              <View style={styles.profileGoalPillRow}>
+                {[20, 50, 100].map((goal) => (
+                  <Pressable key={goal} style={styles.profileGoalPill} onPress={() => setYearGoal(goal)}>
+                    <Text style={styles.profileGoalPillText}>{goal}</Text>
+                  </Pressable>
+                ))}
+                <Pressable style={styles.profileGoalPill} onPress={() => setCustomGoalOpen((open) => !open)}>
+                  <Text style={styles.profileGoalPillText}>Customize</Text>
+                </Pressable>
+              </View>
+              {customGoalOpen && (
+                <View style={styles.customGoalRow}>
+                  <TextInput
+                    style={[styles.input, styles.flexOne]}
+                    placeholder="e.g. 75"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="number-pad"
+                    value={customGoalValue}
+                    onChangeText={setCustomGoalValue}
+                  />
+                  <Pressable
+                    style={styles.customGoalButton}
+                    onPress={() => {
+                      const parsed = Number(customGoalValue);
+                      if (!Number.isInteger(parsed) || parsed <= 0) {
+                        showToast("Enter a whole number above zero.");
+                        return;
+                      }
+                      setYearGoal(parsed);
+                    }}
+                  >
+                    <Text style={styles.primaryButtonText}>Set</Text>
+                  </Pressable>
+                </View>
+              )}
+            </>
+          )}
         </View>
 
         <SectionHeader title="Lifetime worth-it list" action="Top scores" />
@@ -1102,39 +1318,68 @@ function BoughtNearbyApp() {
           />
         ))}
 
-        <SectionHeader title="Want to buy" action={`${wants.length} saved`} />
-        {wants.length === 0 ? (
-          <EmptyState icon="bookmark-outline" title="No wants yet" body="Use Want mode in Log or save stores from the map to build your shopping shortlist." />
-        ) : (
-          wants.map((want) => <WantRow key={want.id} want={want} onBought={() => convertWantToDraft(want)} />)
+      </View>
+    );
+  }
+
+  function renderProfileSection(section: ProfileSection) {
+    const titles: Record<ProfileSection, string> = { bought: "Bought", wants: "Want to Buy", recs: "Recs for You" };
+    return (
+      <View style={styles.screen}>
+        <Pressable style={styles.backRow} onPress={() => setProfileSection(null)}>
+          <View style={styles.backButton}>
+            <Ionicons name="chevron-back" size={20} color={colors.ink} />
+          </View>
+          <Text style={styles.profileSectionTitle}>{titles[section]}</Text>
+        </Pressable>
+
+        {section === "bought" && (
+          <>
+            {CATEGORIES.map((category) => {
+              const ranked = rankedPurchasesForCategory(category, purchases, rankings);
+              if (ranked.length === 0) return null;
+              return (
+                <View key={category} style={styles.shelfCard}>
+                  <View style={styles.shelfHeader}>
+                    <Text style={styles.shelfTitle}>{CATEGORY_EMOJI[category]} {category}</Text>
+                    <Text style={styles.shelfCount}>{ranked.length} ranked</Text>
+                  </View>
+                  {ranked.map((purchase, index) => (
+                    <RankedRow key={purchase.id} purchase={purchase} rank={index + 1} score={scoreForRank(index, rankings[category].length)} />
+                  ))}
+                </View>
+              );
+            })}
+            {purchases.length === 0 && (
+              <EmptyState icon="bag-handle-outline" title="Nothing bought yet" body="Log a purchase from the Add tab to start your ranked shelves." />
+            )}
+          </>
         )}
 
-        <SectionHeader title="Shelves by category" action="Top 10 each" />
-        {CATEGORIES.map((category) => {
-          const ranked = rankedPurchasesForCategory(category, purchases, rankings).slice(0, 10);
-          if (ranked.length === 0) return null;
-          return (
-            <View key={category} style={styles.shelfCard}>
-              <View style={styles.shelfHeader}>
-                <Text style={styles.shelfTitle}>{category}</Text>
-                <Text style={styles.shelfCount}>{ranked.length} ranked</Text>
-              </View>
-              {ranked.map((purchase, index) => (
-                <RankedRow
-                  key={purchase.id}
-                  purchase={purchase}
-                  rank={index + 1}
-                  score={scoreForRank(index, rankings[category].length)}
-                />
-              ))}
-            </View>
-          );
-        })}
+        {section === "wants" &&
+          (wants.length === 0 ? (
+            <EmptyState icon="bookmark-outline" title="No wants yet" body="Use Want mode in Log or save stores from the map to build your shopping shortlist." />
+          ) : (
+            wants.map((want) => <WantRow key={want.id} want={want} onBought={() => convertWantToDraft(want)} />)
+          ))}
 
-        <Pressable style={styles.resetButton} onPress={resetDemoData}>
-          <Ionicons name="refresh-outline" size={18} color={colors.accent} />
-          <Text style={styles.resetButtonText}>Reset demo data</Text>
-        </Pressable>
+        {section === "recs" &&
+          (recommendedStores.length === 0 ? (
+            <EmptyState icon="heart-outline" title="No recs yet" body="You have bought from every nearby store already. Log more finds to unlock new recs." />
+          ) : (
+            recommendedStores.map(({ store, match }) => (
+              <Pressable key={store.id} style={styles.resultCard} onPress={() => setSelectedShop(store)}>
+                <PhotoPreview uri={store.photoUri} category={store.category} size="small" />
+                <View style={styles.resultContent}>
+                  <Text style={styles.resultType}>{match}% match</Text>
+                  <Text style={styles.resultTitle}>{store.name}</Text>
+                  <Text style={styles.resultSubtitle}>{store.neighborhood}, {store.borough}</Text>
+                  <Text style={styles.resultMeta}>{store.tags.join(" • ")}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+              </Pressable>
+            ))
+          ))}
       </View>
     );
   }
@@ -1188,6 +1433,7 @@ function BoughtNearbyApp() {
                   style={[styles.tabItem, isActive && styles.tabItemActive, isAddTab && styles.tabItemAdd]}
                   onPress={() => {
                     setSelectedShop(null);
+                    setProfileSection(null);
                     setSelectedTab(tab.key);
                   }}
                 >
@@ -1205,6 +1451,134 @@ function BoughtNearbyApp() {
           <Text style={styles.toastText}>{toast}</Text>
         </View>
       )}
+
+      <Modal visible={profileMenuVisible} animationType="fade" transparent onRequestClose={() => setProfileMenuVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setProfileMenuVisible(false)}>
+          <View style={styles.compareSheet}>
+            <View style={styles.compareHandle} />
+            <Pressable style={styles.menuRow} onPress={openEditProfile}>
+              <Ionicons name="create-outline" size={20} color={colors.ink} />
+              <Text style={styles.menuRowText}>Edit profile</Text>
+            </Pressable>
+            <Pressable style={styles.menuRow} onPress={shareProfile}>
+              <Ionicons name="share-outline" size={20} color={colors.ink} />
+              <Text style={styles.menuRowText}>Share profile</Text>
+            </Pressable>
+            <Pressable
+              style={styles.menuRow}
+              onPress={() => {
+                setProfileMenuVisible(false);
+                resetDemoData();
+              }}
+            >
+              <Ionicons name="refresh-outline" size={20} color={colors.accent} />
+              <Text style={styles.menuRowText}>Reset demo data</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={editingProfile} animationType="slide" transparent onRequestClose={() => setEditingProfile(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.compareSheet}>
+            <View style={styles.compareHandle} />
+            <Text style={styles.cardTitle}>Edit profile</Text>
+            <View style={styles.editAvatarRow}>
+              {editDraft.avatarUri ? (
+                <Image source={{ uri: editDraft.avatarUri }} style={styles.editAvatarPreview} />
+              ) : (
+                <View style={[styles.editAvatarPreview, styles.editAvatarPlaceholder]}>
+                  <Text style={styles.profileAvatarText}>{editDraft.name.trim()[0]?.toUpperCase() ?? "?"}</Text>
+                </View>
+              )}
+              <Pressable style={styles.secondaryButton} onPress={pickAvatar}>
+                <Ionicons name="images-outline" size={18} color={colors.ink} />
+                <Text style={styles.secondaryButtonText}>Choose photo</Text>
+              </Pressable>
+            </View>
+            <FormLabel label="Name" />
+            <TextInput style={styles.input} value={editDraft.name} onChangeText={(name) => setEditDraft((current) => ({ ...current, name }))} />
+            <FormLabel label="Handle" />
+            <TextInput
+              style={styles.input}
+              autoCapitalize="none"
+              value={editDraft.handle}
+              onChangeText={(handle) => setEditDraft((current) => ({ ...current, handle }))}
+            />
+            <FormLabel label="Neighborhood" />
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Union Square"
+              placeholderTextColor={colors.muted}
+              value={editDraft.neighborhood}
+              onChangeText={(neighborhood) => setEditDraft((current) => ({ ...current, neighborhood }))}
+            />
+            <View style={styles.profileButtonRow}>
+              <Pressable style={styles.profilePillButton} onPress={() => setEditingProfile(false)}>
+                <Text style={styles.profilePillButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={[styles.profilePillButton, styles.profilePillPrimary]} onPress={saveProfile}>
+                <Text style={[styles.profilePillButtonText, styles.profilePillPrimaryText]}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!friendsModal} animationType="slide" transparent onRequestClose={() => setFriendsModal(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.compareSheet}>
+            <View style={styles.compareHandle} />
+            <Text style={styles.cardTitle}>{friendsModal === "followers" ? "Followers" : "Following"}</Text>
+            <Text style={styles.cardSubtitle}>Tap a friend to visit the shop behind their latest ranked find.</Text>
+            {friendProfiles.map((friend) => (
+              <Pressable
+                key={friend.actor}
+                style={styles.friendRow}
+                onPress={() => {
+                  setFriendsModal(null);
+                  openStoreByName(friend.storeName);
+                }}
+              >
+                <View style={styles.feedAvatar}>
+                  <Text style={styles.feedAvatarText}>{friend.avatar}</Text>
+                </View>
+                <View style={styles.flexOne}>
+                  <Text style={styles.rankedTitle}>{friend.actor}</Text>
+                  <Text style={styles.rankedMeta}>Latest: {friend.itemName} #{friend.rank} at {friend.storeName}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+              </Pressable>
+            ))}
+            <Pressable style={styles.profilePillButton} onPress={() => setFriendsModal(null)}>
+              <Text style={styles.profilePillButtonText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={leaderboardVisible} animationType="slide" transparent onRequestClose={() => setLeaderboardVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.compareSheet}>
+            <View style={styles.compareHandle} />
+            <Text style={styles.cardTitle}>Rank Nearby</Text>
+            <Text style={styles.cardSubtitle}>Ranked by items placed on shelves. Log and rank more finds to climb.</Text>
+            {leaderboardRows.map((row, index) => (
+              <View key={row.name} style={[styles.friendRow, row.isYou && styles.leaderRowYou]}>
+                <Text style={styles.leaderRank}>#{index + 1}</Text>
+                <View style={styles.feedAvatar}>
+                  <Text style={styles.feedAvatarText}>{row.avatar}</Text>
+                </View>
+                <Text style={[styles.rankedTitle, styles.flexOne]}>{row.name}</Text>
+                <Text style={styles.rankedMeta}>{row.count} ranked</Text>
+              </View>
+            ))}
+            <Pressable style={styles.profilePillButton} onPress={() => setLeaderboardVisible(false)}>
+              <Text style={styles.profilePillButtonText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!comparison && !!currentComparisonItem && !!newComparisonItem} animationType="slide" transparent onRequestClose={skipComparisonToBottom}>
         <View style={styles.modalBackdrop}>
@@ -2529,12 +2903,90 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
-  profilePillSmall: {
+  profilePillPrimary: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  profilePillPrimaryText: {
+    color: "white",
+  },
+  profileAvatarImage: {
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    marginBottom: 8,
+  },
+  profileSectionTitle: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  goalProgressTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: colors.soft2,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    overflow: "hidden",
+  },
+  goalProgressFill: {
+    height: "100%",
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+  },
+  customGoalRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  customGoalButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 13,
+  },
+  menuRowText: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  friendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 9,
+  },
+  leaderRowYou: {
+    backgroundColor: colors.greenSoft,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+  },
+  leaderRank: {
+    color: colors.accentDark,
+    fontSize: 15,
+    fontWeight: "900",
+    width: 32,
+  },
+  editAvatarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  editAvatarPreview: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
+  editAvatarPlaceholder: {
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
