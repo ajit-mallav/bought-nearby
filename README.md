@@ -1,16 +1,16 @@
 # Bought Nearby
 
-An iPhone-first Expo app prototype for discovering local NYC purchases through personal ranked shelves. Think Beli, but for things people buy nearby.
+An iPhone-first Expo app prototype for discovering local NYC clothing purchases through personal ranked shelves. Think Beli, but for clothes people buy nearby.
 
 ## What is built
 
-- **Log a purchase** with photo, item name, store/link, price, category, and notes.
-- **Binary comparison ranking** after save: the app asks simple “was this better than X?” questions and inserts the item into the category shelf in `O(log n)` comparisons.
+- **Log a purchase** with photo, item name, store/link, price, and notes.
+- **Binary comparison ranking** after save: the app asks simple “was this better than X?” questions and inserts the item into the ranked shelf in `O(log n)` comparisons.
 - **Beli-style score** from rank position; users do not manually enter a 0–10 score.
-- **Feed** with friend activity such as “Sarah ranked AirPods Pro #2 in Tech.”
-- **Profile shelves** with top 10 per category and a lifetime “worth it” list.
-- **Search** across your purchases, friend activity, and local stores.
-- **Nearby map** with seeded NYC stores, category filters, distance sorting, optional location permission, and directions links.
+- **Feed** with friend activity such as “Sarah ranked a cropped trench coat #2.”
+- **Profile shelves** with a top-10 ranked shelf and a lifetime “worth it” list.
+- **Search** across your purchases, friend activity, and local clothing stores.
+- **Nearby map** with a real, zoomable Leaflet map of the 5 boroughs, seeded NYC clothing stores with ratings that populate as you pan/zoom, distance sorting, optional location permission, and a shop detail page with directions and a feed of what's been bought there.
 - **Local persistence** using device/browser storage, plus a reset-demo-data action.
 
 ## Tech stack
@@ -55,13 +55,13 @@ pnpm start       # Expo dev server / QR code
 ## Demo flow
 
 1. Open **Log**.
-2. Enter a purchase like “Ceramic pour-over” from “Coming Soon NY,” choose **Kitchen** or **Home**, and tap **Use sample** or choose a real photo.
+2. Enter a purchase like “Vintage denim jacket” from “Beacon's Closet,” and tap **Use sample** or choose a real photo.
 3. Tap **Save & rank**.
 4. Answer comparison prompts until the item lands in the ranked shelf.
-5. View the activity in **Feed**, ranked shelves in **Shelf**, related items in **Search**, and nearby NYC stores in **Map**.
+5. View the activity in **Feed**, ranked shelves in **Shelf**, related items in **Search**, and nearby NYC clothing stores in **Map** — tap a pin to see the shop's address and everything bought there.
 
 ## Notes
 
-- The map is a lightweight in-app NYC store map so the demo works without Google/Apple Maps API keys.
+- The web map uses Leaflet + OpenStreetMap, so it's a real pannable/zoomable map with no API key required. Native (iOS via Expo Go) falls back to a simplified marker view.
 - Store data is seeded in `src/data/seed.ts`; replacing it with live store inventory or a backend search service would be the next step.
 - This repo is intentionally standalone and does not depend on Shopify infrastructure.

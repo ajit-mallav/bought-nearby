@@ -1,12 +1,4 @@
-export type Category =
-  | "Kitchen"
-  | "Tech"
-  | "Clothing"
-  | "Fitness"
-  | "Home"
-  | "Beauty"
-  | "Books"
-  | "Other";
+export type Category = "Clothing";
 
 export type Purchase = {
   id: string;

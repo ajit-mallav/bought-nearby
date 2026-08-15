@@ -53,7 +53,7 @@ const emptyDraft = (): DraftPurchase => ({
   storeName: "",
   storeLink: "",
   price: "",
-  category: "Kitchen",
+  category: "Clothing",
   notes: "",
 });
 
@@ -315,12 +315,12 @@ export default function App() {
       <View style={styles.screen}>
         <View style={styles.heroCard}>
           <View style={styles.heroBadge}>
-            <Ionicons name="storefront-outline" size={18} color={colors.ink} />
-            <Text style={styles.heroBadgeText}>NYC local discovery</Text>
+            <Ionicons name="shirt-outline" size={18} color={colors.ink} />
+            <Text style={styles.heroBadgeText}>NYC clothing discovery</Text>
           </View>
           <Text style={styles.heroTitle}>Bought Nearby</Text>
           <Text style={styles.heroSubtitle}>
-            Log what you bought, compare it against your own shelves, and help friends find the smaller stores worth visiting.
+            Log what you bought, compare it against your own closet, and help friends find the smaller clothing stores worth visiting.
           </Text>
           <View style={styles.statRow}>
             <StatCard icon="trophy-outline" label="Ranked" value={String(rankedCount)} />
@@ -373,7 +373,7 @@ export default function App() {
           <FormLabel label="Item name" />
           <TextInput
             style={styles.input}
-            placeholder="e.g. Ceramic pour-over"
+            placeholder="e.g. Vintage denim jacket"
             placeholderTextColor={colors.muted}
             value={draft.itemName}
             onChangeText={(itemName) => updateDraft({ itemName })}
@@ -382,7 +382,7 @@ export default function App() {
           <FormLabel label="Store or link" />
           <TextInput
             style={styles.input}
-            placeholder="e.g. Coming Soon NY"
+            placeholder="e.g. Beacon's Closet"
             placeholderTextColor={colors.muted}
             value={draft.storeName}
             onChangeText={(storeName) => updateDraft({ storeName })}
@@ -491,7 +491,7 @@ export default function App() {
           <Text style={styles.cardTitle}>Find similar items and stores</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search air fryer, vintage, cookware..."
+            placeholder="Search denim jacket, vintage, boutique..."
             placeholderTextColor={colors.muted}
             value={searchTerm}
             onChangeText={setSearchTerm}
