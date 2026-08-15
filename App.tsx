@@ -627,6 +627,14 @@ function BoughtNearbyApp() {
 
   function renderSearch() {
     const normalized = searchTerm.trim().toLowerCase();
+    const destinationForStore = (storeName: string, fallbackTab: TabKey = "profile") => () => {
+      const store = stores.find((candidate) => candidate.name.toLowerCase() === storeName.toLowerCase());
+      if (store) {
+        setSelectedShop(store);
+        return;
+      }
+      setSelectedTab(fallbackTab);
+    };
     const purchaseRows = purchases.map((purchase) => ({
       id: `purchase-${purchase.id}`,
       type: "Your shelf",
@@ -638,6 +646,7 @@ function BoughtNearbyApp() {
         ? `#${rankOf(purchase.id, purchase.category, rankings)} • ${scoreOf(purchase.id, purchase.category, rankings)} score`
         : "Awaiting rank",
       body: purchase.notes,
+      onPress: destinationForStore(purchase.storeName),
     }));
     const wantRows = wants.map((want) => ({
       id: `want-${want.id}`,
@@ -648,6 +657,7 @@ function BoughtNearbyApp() {
       image: want.photoUri,
       meta: "Saved for later",
       body: want.notes,
+      onPress: destinationForStore(want.storeName),
     }));
     const friendRows = friendFeed.map((event) => ({
       id: `friend-${event.id}`,
@@ -658,6 +668,7 @@ function BoughtNearbyApp() {
       image: event.photoUri,
       meta: `#${event.rank} • ${event.score} score`,
       body: event.isLocalStore ? "Local store find" : undefined,
+      onPress: destinationForStore(event.storeName, "feed"),
     }));
     const storeRows = stores.map((store) => ({
       id: `store-${store.id}`,
@@ -668,6 +679,7 @@ function BoughtNearbyApp() {
       image: store.photoUri,
       meta: store.tags.join(" • "),
       body: store.description,
+      onPress: () => setSelectedShop(store),
     }));
 
     const rows = [...purchaseRows, ...wantRows, ...friendRows, ...storeRows].filter((row) => {
@@ -696,7 +708,13 @@ function BoughtNearbyApp() {
           <EmptyState icon="search-outline" title="No matches yet" body="Try another category or log a purchase to build your searchable shelves." />
         ) : (
           rows.map((row) => (
-            <View style={styles.resultCard} key={row.id}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${row.title}`}
+              style={({ pressed }) => [styles.resultCard, pressed && styles.resultCardPressed]}
+              key={row.id}
+              onPress={row.onPress}
+            >
               <PhotoPreview uri={row.image} category={row.category} size="small" />
               <View style={styles.resultContent}>
                 <View style={styles.resultTopRow}>
@@ -708,7 +726,8 @@ function BoughtNearbyApp() {
                 <Text style={styles.resultMeta}>{row.meta}</Text>
                 {!!row.body && <Text style={styles.resultBody}>{row.body}</Text>}
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} style={styles.resultChevron} />
+            </Pressable>
           ))
         )}
       </View>
@@ -1952,6 +1971,13 @@ const styles = StyleSheet.create({
     padding: 12,
     flexDirection: "row",
     gap: 12,
+  },
+  resultCardPressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.99 }],
+  },
+  resultChevron: {
+    alignSelf: "center",
   },
   resultContent: {
     flex: 1,
