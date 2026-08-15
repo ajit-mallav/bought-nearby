@@ -43,11 +43,11 @@ type DraftPurchase = {
 };
 
 const tabs: { key: TabKey; label: string; icon: string }[] = [
-  { key: "feed", label: "Feed", icon: "sparkles-outline" },
-  { key: "add", label: "Log", icon: "add-circle-outline" },
-  { key: "search", label: "Search", icon: "search-outline" },
+  { key: "feed", label: "Home", icon: "sparkles-outline" },
   { key: "map", label: "Map", icon: "map-outline" },
-  { key: "profile", label: "Shelf", icon: "person-circle-outline" },
+  { key: "add", label: "Add", icon: "add" },
+  { key: "search", label: "Search", icon: "search-outline" },
+  { key: "profile", label: "Me", icon: "person-circle-outline" },
 ];
 
 const emptyDraft = (): DraftPurchase => ({
@@ -353,26 +353,52 @@ export default function App() {
     return (
       <View style={styles.screen}>
         <View style={styles.heroCard}>
-          <View style={styles.heroBadge}>
-            <Ionicons name="shirt-outline" size={18} color={colors.ink} />
-            <Text style={styles.heroBadgeText}>NYC clothing discovery</Text>
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroBadge}>
+              <Ionicons name="people-outline" size={18} color={colors.ink} />
+              <Text style={styles.heroBadgeText}>Beli for shopping</Text>
+            </View>
+            <View style={styles.matchScoreBadge}>
+              <Text style={styles.matchScoreValue}>92%</Text>
+              <Text style={styles.matchScoreLabel}>match</Text>
+            </View>
           </View>
-          <Text style={styles.heroTitle}>Bought Nearby</Text>
+          <Text style={styles.heroTitle}>Rank what you bought. Save what you want.</Text>
           <Text style={styles.heroSubtitle}>
-            Log what you bought, compare it against your own closet, and help friends find the smaller clothing stores worth visiting.
+            A friend-powered shopping list, map, and ranked closet for NYC clothing finds.
           </Text>
+          <View style={styles.beliPathRow}>
+            <View style={styles.beliPathStep}>
+              <Text style={styles.beliPathNumber}>1</Text>
+              <Text style={styles.beliPathLabel}>Bought</Text>
+            </View>
+            <View style={styles.beliPathStep}>
+              <Text style={styles.beliPathNumber}>2</Text>
+              <Text style={styles.beliPathLabel}>Compare</Text>
+            </View>
+            <View style={styles.beliPathStep}>
+              <Text style={styles.beliPathNumber}>3</Text>
+              <Text style={styles.beliPathLabel}>Discover</Text>
+            </View>
+          </View>
           <View style={styles.statRow}>
             <StatCard icon="trophy-outline" label="Ranked" value={String(rankedCount)} />
-            <StatCard icon="storefront-outline" label="Local logs" value={String(localPurchaseCount)} />
             <StatCard icon="bookmark-outline" label="Wants" value={String(wants.length)} />
+            <StatCard icon="storefront-outline" label="Stores" value={String(stores.length)} />
           </View>
-          <Pressable style={styles.primaryButton} onPress={() => setSelectedTab("add")}>
-            <Ionicons name="camera-outline" size={19} color="white" />
-            <Text style={styles.primaryButtonText}>Log a purchase</Text>
-          </Pressable>
+          <View style={styles.homeActionRow}>
+            <Pressable style={[styles.primaryButton, styles.homeActionButton]} onPress={() => { setDraft({ ...emptyDraft(), mode: "bought" }); setSelectedTab("add"); }}>
+              <Ionicons name="checkmark-circle-outline" size={19} color="white" />
+              <Text style={styles.primaryButtonText}>Bought</Text>
+            </Pressable>
+            <Pressable style={[styles.secondaryButtonWide, styles.homeActionButton]} onPress={() => { setDraft({ ...emptyDraft(), mode: "want" }); setSelectedTab("add"); }}>
+              <Ionicons name="bookmark-outline" size={19} color={colors.ink} />
+              <Text style={styles.secondaryButtonText}>Want</Text>
+            </Pressable>
+          </View>
         </View>
 
-        <SectionHeader title="Friend activity" action="Beli-style rankings" />
+        <SectionHeader title="Friends" action="Rankings + recs" />
         {feedEvents.map((event) => (
           <FeedCard key={event.id} event={event} onPress={() => openStoreByName(event.storeName)} />
         ))}
@@ -677,6 +703,7 @@ export default function App() {
     const shopFeed = feedEvents.filter((event) => event.storeName.toLowerCase() === store.name.toLowerCase());
     const shopWants = wants.filter((want) => want.storeName.toLowerCase() === store.name.toLowerCase());
     const isWantedStore = wantedStoreIds.has(store.id);
+    const matchScore = Math.min(99, Math.round(store.rating * 19 + shopFeed.length * 2 + shopWants.length));
 
     return (
       <View style={styles.screen}>
@@ -697,6 +724,13 @@ export default function App() {
             <Ionicons name="chevron-forward" size={16} color={colors.muted} />
           </Pressable>
           <Text style={styles.resultBody}>{store.description}</Text>
+          <View style={styles.shopMatchCard}>
+            <View>
+              <Text style={styles.shopMatchLabel}>Your match score</Text>
+              <Text style={styles.shopMatchBody}>Based on your ranked closet, wants, and friend activity.</Text>
+            </View>
+            <Text style={styles.shopMatchValue}>{matchScore}%</Text>
+          </View>
           <View style={styles.shopActionRow}>
             <Pressable style={styles.shopPrimaryAction} onPress={() => startLogFromStore(store)}>
               <Ionicons name="bag-add-outline" size={17} color="white" />
@@ -834,17 +868,18 @@ export default function App() {
           <View style={styles.tabBar}>
             {tabs.map((tab) => {
               const isActive = selectedTab === tab.key;
+              const isAddTab = tab.key === "add";
               return (
                 <Pressable
                   key={tab.key}
-                  style={[styles.tabItem, isActive && styles.tabItemActive]}
+                  style={[styles.tabItem, isActive && styles.tabItemActive, isAddTab && styles.tabItemAdd]}
                   onPress={() => {
                     setSelectedShop(null);
                     setSelectedTab(tab.key);
                   }}
                 >
-                  <Ionicons name={tab.icon as keyof typeof Ionicons.glyphMap} size={21} color={isActive ? colors.ink : colors.muted} />
-                  <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab.label}</Text>
+                  <Ionicons name={tab.icon as keyof typeof Ionicons.glyphMap} size={isAddTab ? 24 : 21} color={isAddTab ? "white" : isActive ? colors.ink : colors.muted} />
+                  <Text style={[styles.tabText, isAddTab && styles.tabTextAdd, isActive && !isAddTab && styles.tabTextActive]}>{tab.label}</Text>
                 </Pressable>
               );
             })}
@@ -955,7 +990,7 @@ function FormLabel({ label }: { label: string }) {
 function StatCard({ label, value, icon }: { label: string; value: string; icon?: keyof typeof Ionicons.glyphMap }) {
   return (
     <View style={styles.statCard}>
-      {!!icon && <Ionicons name={icon} size={16} color="white" style={styles.statIcon} />}
+      {!!icon && <Ionicons name={icon} size={16} color={colors.accent} style={styles.statIcon} />}
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -981,12 +1016,15 @@ function FeedCard({ event, onPress }: { event: FeedEvent; onPress?: () => void }
       <PhotoPreview uri={event.photoUri} category={event.category} size="small" />
       <View style={styles.feedContent}>
         <Text style={styles.feedTitle}>
-          <Text style={styles.feedActor}>{event.actor}</Text> ranked {event.itemName} #{event.rank} in {event.category}
+          <Text style={styles.feedActor}>{event.actor}</Text> ranked {event.itemName} #{event.rank}
         </Text>
         <Text style={styles.feedMeta}>
-          {event.storeName} • {event.score}/10 • {timeAgo(event.createdAt)}
+          {event.storeName} • {timeAgo(event.createdAt)}
         </Text>
         {event.isLocalStore && <Text style={styles.localChip}>Local store find</Text>}
+      </View>
+      <View style={styles.feedScorePill}>
+        <Text style={styles.feedScoreValue}>{event.score}</Text>
       </View>
       {!!onPress && <Ionicons name="chevron-forward" size={18} color={colors.muted} />}
     </Wrapper>
@@ -1127,18 +1165,26 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroCard: {
-    backgroundColor: colors.ink,
+    backgroundColor: colors.surface,
     borderRadius: 30,
-    padding: 22,
+    padding: 20,
     gap: 16,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
   },
   heroBadge: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.soft,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1149,16 +1195,61 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   heroTitle: {
-    color: "white",
-    fontSize: 38,
-    lineHeight: 40,
+    color: colors.ink,
+    fontSize: 32,
+    lineHeight: 35,
     fontWeight: "900",
-    letterSpacing: -1.3,
+    letterSpacing: -1.1,
   },
   heroSubtitle: {
-    color: colors.soft,
+    color: colors.muted,
     fontSize: 16,
     lineHeight: 23,
+    fontWeight: "600",
+  },
+  matchScoreBadge: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 66,
+    borderRadius: 18,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  matchScoreValue: {
+    color: "white",
+    fontWeight: "900",
+    fontSize: 17,
+  },
+  matchScoreLabel: {
+    color: colors.soft,
+    fontWeight: "800",
+    fontSize: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  beliPathRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  beliPathStep: {
+    flex: 1,
+    backgroundColor: colors.soft2,
+    borderRadius: 17,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  beliPathNumber: {
+    color: colors.accent,
+    fontWeight: "900",
+    fontSize: 17,
+  },
+  beliPathLabel: {
+    color: colors.ink,
+    fontWeight: "900",
+    marginTop: 2,
+    fontSize: 12,
   },
   statRow: {
     flexDirection: "row",
@@ -1166,9 +1257,11 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.13)",
+    backgroundColor: colors.soft2,
     borderRadius: 18,
     padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   statIcon: {
     marginBottom: 4,
@@ -1202,6 +1295,13 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "900",
+  },
+  homeActionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  homeActionButton: {
+    flex: 1,
   },
   secondaryButton: {
     backgroundColor: colors.soft,
@@ -1291,6 +1391,19 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
     fontWeight: "700",
+  },
+  feedScorePill: {
+    minWidth: 44,
+    borderRadius: 999,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    alignItems: "center",
+  },
+  feedScoreValue: {
+    color: "white",
+    fontWeight: "900",
+    fontSize: 13,
   },
   localChip: {
     alignSelf: "flex-start",
@@ -1610,6 +1723,35 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: "700",
   },
+  shopMatchCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    backgroundColor: colors.greenSoft,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  shopMatchLabel: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  shopMatchBody: {
+    color: colors.muted,
+    lineHeight: 18,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  shopMatchValue: {
+    color: colors.ink,
+    fontSize: 27,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+  },
   shopActionRow: {
     flexDirection: "row",
     gap: 10,
@@ -1824,6 +1966,14 @@ const styles = StyleSheet.create({
   tabItemActive: {
     backgroundColor: colors.soft,
   },
+  tabItemAdd: {
+    backgroundColor: colors.ink,
+    borderRadius: 20,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+  },
   tabText: {
     fontSize: 10,
     color: colors.muted,
@@ -1831,6 +1981,9 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: colors.ink,
+  },
+  tabTextAdd: {
+    color: "white",
   },
   toast: {
     position: "absolute",
