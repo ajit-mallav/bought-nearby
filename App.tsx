@@ -1144,74 +1144,96 @@ function BoughtNearbyApp() {
     const yourRank = leaderboardRows.findIndex((row) => row.isYou) + 1;
     const yearCount = purchases.filter((purchase) => new Date(purchase.createdAt).getFullYear() === new Date().getFullYear()).length;
     const goalProgress = profile.goal2026 ? Math.min(100, Math.round((yearCount / profile.goal2026) * 100)) : 0;
+    const photoTiles = topItems.filter((entry) => !!entry.purchase.photoUri).slice(0, 5);
 
     return (
       <View style={styles.homeScreen}>
         <View style={styles.homeTopRow}>
           <Text style={styles.homeBrandText}>NearBuy</Text>
-          <Image source={require("./assets/icon-mark.png")} style={styles.homeLogoMark} resizeMode="contain" />
+          <Pressable style={styles.profileMenuButton} onPress={() => setProfileMenuVisible(true)} hitSlop={8}>
+            <Ionicons name="ellipsis-horizontal" size={20} color={feedColors.ink} />
+          </Pressable>
         </View>
 
-        <View style={styles.profileHeroCard}>
-          <View style={styles.profileHeroRow}>
+        <View style={styles.profileHeader}>
+          <Pressable onPress={openEditProfile}>
+            {profile.avatarUri ? (
+              <Image source={{ uri: profile.avatarUri }} style={styles.profileHeaderAvatar} />
+            ) : (
+              <View style={[styles.profileHeaderAvatar, styles.profileHeaderAvatarFallback]}>
+                <Text style={styles.heroAvatarText}>{profile.name.trim()[0]?.toUpperCase() ?? "Y"}</Text>
+              </View>
+            )}
+          </Pressable>
+          <View style={styles.profileHeaderInfo}>
+            <Text style={styles.profileHeaderName}>{profile.name}</Text>
+            <Text style={styles.profileHeaderSub}>@{profile.handle}</Text>
             <Pressable onPress={openEditProfile}>
-              {profile.avatarUri ? (
-                <Image source={{ uri: profile.avatarUri }} style={styles.heroAvatarImage} />
-              ) : (
-                <View style={styles.heroAvatar}>
-                  <Text style={styles.heroAvatarText}>{profile.name.trim()[0]?.toUpperCase() ?? "Y"}</Text>
-                </View>
-              )}
+              <Text style={styles.profileNeighborhoodLink}>{profile.neighborhood ? `📍 ${profile.neighborhood}` : "+ Add neighborhood"}</Text>
             </Pressable>
-            <View style={styles.heroIdentity}>
-              <Text style={styles.heroName}>{profile.name}</Text>
-              <Text style={styles.heroHandle}>@{profile.handle} • since Aug 2025</Text>
-              <Pressable onPress={openEditProfile}>
-                <Text style={styles.heroNeighborhood}>{profile.neighborhood ? `📍 ${profile.neighborhood}` : "+ Add neighborhood"}</Text>
+            <View style={styles.profileActionRow}>
+              <Pressable style={styles.profileFollowButton} onPress={openEditProfile}>
+                <Text style={styles.profileFollowButtonText}>Edit profile</Text>
+              </Pressable>
+              <Pressable onPress={shareProfile} hitSlop={8}>
+                <Ionicons name="paper-plane-outline" size={22} color={feedColors.teal} />
               </Pressable>
             </View>
-            <View style={styles.heroActions}>
-              <Pressable style={styles.heroIconButton} onPress={shareProfile} hitSlop={6}>
-                <Ionicons name="share-outline" size={18} color="white" />
-              </Pressable>
-              <Pressable style={styles.heroIconButton} onPress={() => setProfileMenuVisible(true)} hitSlop={6}>
-                <Ionicons name="ellipsis-horizontal" size={18} color="white" />
-              </Pressable>
-            </View>
-          </View>
-          <View style={styles.heroStatRow}>
-            <Pressable style={styles.heroStat} onPress={() => setFriendsModal("followers")}>
-              <Text style={styles.heroStatValue}>{friendProfiles.length}</Text>
-              <Text style={styles.heroStatLabel}>Followers</Text>
-            </Pressable>
-            <View style={styles.heroStatDivider} />
-            <Pressable style={styles.heroStat} onPress={() => setFriendsModal("following")}>
-              <Text style={styles.heroStatValue}>{friendProfiles.length}</Text>
-              <Text style={styles.heroStatLabel}>Following</Text>
-            </Pressable>
-            <View style={styles.heroStatDivider} />
-            <Pressable style={styles.heroStat} onPress={() => setLeaderboardVisible(true)}>
-              <Text style={styles.heroStatValue}>#{yourRank}</Text>
-              <Text style={styles.heroStatLabel}>Rank Nearby</Text>
-            </Pressable>
           </View>
         </View>
+
+        <View style={styles.profileStatsRow}>
+          <Pressable style={styles.profileStatItem} onPress={() => setProfileSection("bought")}>
+            <Text style={styles.profileStatValue}>{purchases.length}</Text>
+            <Text style={styles.profileStatLabel}>Bought</Text>
+          </Pressable>
+          <Pressable style={styles.profileStatItem} onPress={() => setFriendsModal("followers")}>
+            <Text style={styles.profileStatValue}>{friendProfiles.length}</Text>
+            <Text style={styles.profileStatLabel}>Followers</Text>
+          </Pressable>
+          <Pressable style={styles.profileStatItem} onPress={() => setFriendsModal("following")}>
+            <Text style={styles.profileStatValue}>{friendProfiles.length}</Text>
+            <Text style={styles.profileStatLabel}>Following</Text>
+          </Pressable>
+        </View>
+
+        {photoTiles.length > 0 && (
+          <>
+            <View style={styles.profilePhotoGrid}>
+              {photoTiles.map((entry, index) => (
+                <Pressable
+                  key={entry.purchase.id}
+                  style={[styles.profilePhotoTile, index === photoTiles.length - 1 && photoTiles.length % 2 === 1 && styles.profilePhotoTileWide]}
+                  onPress={() => openStoreByName(entry.purchase.storeName)}
+                >
+                  <Image source={{ uri: entry.purchase.photoUri }} style={styles.profilePhotoImage} resizeMode="cover" />
+                  <View style={styles.profilePhotoBadge}>
+                    <Text style={styles.profilePhotoBadgeText}>{entry.score}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable style={styles.profileViewAll} onPress={() => setProfileSection("bought")}>
+              <Text style={styles.profileAddLink}>View all finds →</Text>
+            </Pressable>
+          </>
+        )}
 
         <View style={styles.moduleGrid}>
-          <Pressable style={styles.moduleTile} onPress={() => setProfileSection("bought")}>
-            <Ionicons name="checkmark-circle" size={22} color={feedColors.teal} />
-            <Text style={styles.moduleValue}>{purchases.length}</Text>
-            <Text style={styles.moduleLabel}>Bought</Text>
+          <Pressable style={styles.moduleTile} onPress={() => setLeaderboardVisible(true)}>
+            <Ionicons name="trophy" size={20} color={feedColors.teal} />
+            <Text style={styles.moduleValue}>#{yourRank}</Text>
+            <Text style={styles.moduleLabel}>Rank Nearby</Text>
           </Pressable>
           <Pressable style={styles.moduleTile} onPress={() => setProfileSection("recs")}>
-            <Ionicons name="heart-circle" size={22} color={feedColors.teal} />
+            <Ionicons name="heart-circle" size={20} color={feedColors.teal} />
             <Text style={styles.moduleValue}>{recommendedStores.length}</Text>
             <Text style={styles.moduleLabel}>Recs for You</Text>
           </Pressable>
           <Pressable style={styles.moduleTile} onPress={() => setProfileSection("bought")}>
-            <Ionicons name="flame" size={22} color={feedColors.teal} />
+            <Ionicons name="flame" size={20} color={feedColors.teal} />
             <Text style={styles.moduleValue}>{streakWeeks}w</Text>
-            <Text style={styles.moduleLabel}>Current Streak</Text>
+            <Text style={styles.moduleLabel}>Streak</Text>
           </Pressable>
         </View>
 
@@ -2779,92 +2801,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
   },
-  profileHeroCard: {
-    backgroundColor: feedColors.ink,
-    borderRadius: 26,
-    padding: 18,
-    gap: 16,
-  },
-  profileHeroRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  heroAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    backgroundColor: feedColors.teal,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroAvatarImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-  },
   heroAvatarText: {
     color: "white",
     fontSize: 26,
     fontWeight: "900",
-  },
-  heroIdentity: {
-    flex: 1,
-    gap: 2,
-  },
-  heroName: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "900",
-    letterSpacing: -0.4,
-  },
-  heroHandle: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  heroNeighborhood: {
-    color: feedColors.teal,
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  heroActions: {
-    gap: 8,
-  },
-  heroIconButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroStatRow: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    paddingVertical: 10,
-  },
-  heroStat: {
-    flex: 1,
-    alignItems: "center",
-    gap: 1,
-  },
-  heroStatValue: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  heroStatLabel: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  heroStatDivider: {
-    width: 1,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    marginVertical: 4,
   },
   moduleGrid: {
     flexDirection: "row",
@@ -2873,7 +2813,7 @@ const styles = StyleSheet.create({
   },
   moduleTile: {
     flexGrow: 1,
-    flexBasis: "46%",
+    flexBasis: "30%",
     backgroundColor: feedColors.background,
     borderWidth: 1,
     borderColor: feedColors.border,
@@ -2888,8 +2828,128 @@ const styles = StyleSheet.create({
   },
   moduleLabel: {
     color: "#7C8DA0",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
+  },
+  profileMenuButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: feedColors.border,
+    backgroundColor: feedColors.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginTop: 2,
+  },
+  profileHeaderAvatar: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+  },
+  profileHeaderAvatarFallback: {
+    backgroundColor: feedColors.teal,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileHeaderInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  profileHeaderName: {
+    color: feedColors.ink,
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+  profileHeaderSub: {
+    color: "#7C8DA0",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  profileNeighborhoodLink: {
+    color: feedColors.teal,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  profileActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 7,
+  },
+  profileFollowButton: {
+    backgroundColor: feedColors.teal,
+    borderRadius: 999,
+    paddingVertical: 9,
+    paddingHorizontal: 24,
+  },
+  profileFollowButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  profileStatsRow: {
+    flexDirection: "row",
+    marginTop: 2,
+  },
+  profileStatItem: {
+    flex: 1,
+    gap: 1,
+  },
+  profileStatValue: {
+    color: feedColors.ink,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  profileStatLabel: {
+    color: "#7C8DA0",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  profilePhotoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  profilePhotoTile: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    height: 132,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: feedColors.tealSoft,
+  },
+  profilePhotoTileWide: {
+    flexBasis: "100%",
+    height: 150,
+  },
+  profilePhotoImage: {
+    width: "100%",
+    height: "100%",
+  },
+  profilePhotoBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: feedColors.teal,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+  },
+  profilePhotoBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  profileViewAll: {
+    alignSelf: "flex-end",
+    marginTop: -6,
   },
   profileAvatarText: {
     color: "white",
@@ -2927,12 +2987,6 @@ const styles = StyleSheet.create({
   },
   profilePillPrimaryText: {
     color: "white",
-  },
-  profileAvatarImage: {
-    width: 118,
-    height: 118,
-    borderRadius: 59,
-    marginBottom: 8,
   },
   profileSectionTitle: {
     color: feedColors.ink,
