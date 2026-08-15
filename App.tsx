@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -72,11 +72,6 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(DEFAULT_LOCATION);
   const [locationMessage, setLocationMessage] = useState("Showing a demo starting point in Union Square.");
   const [selectedShop, setSelectedShop] = useState<Store | null>(null);
-  const [visibleStoreIds, setVisibleStoreIds] = useState<string[] | null>(null);
-
-  const handleVisibleStoresChange = useCallback((ids: string[]) => {
-    setVisibleStoreIds(ids);
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -316,8 +311,6 @@ export default function App() {
         return renderAdd();
       case "search":
         return renderSearch();
-      case "map":
-        return renderMap();
       case "profile":
         return renderProfile();
       default:
@@ -544,12 +537,9 @@ export default function App() {
       .map((store) => ({ ...store, distance: distanceMiles(userLocation, store) }))
       .sort((a, b) => a.distance - b.distance);
 
-    const visibleSet = visibleStoreIds ? new Set(visibleStoreIds) : null;
-    const listedStores = visibleSet ? categoryStores.filter((store) => visibleSet.has(store.id)) : categoryStores;
-
     return (
-      <View style={styles.screen}>
-        <View style={styles.mapHero}>
+      <View style={styles.mapScreen}>
+        <View style={styles.mapHeaderCard}>
           <View style={styles.mapHeaderRow}>
             <View>
               <Text style={styles.cardKicker}>Nearby map</Text>
@@ -562,23 +552,11 @@ export default function App() {
           </View>
           <Text style={styles.cardSubtitle}>{locationMessage}</Text>
           <CategoryPicker selected={mapCategory} onSelect={setMapCategory} includeAll compact />
-
-          <NycMap
-            stores={categoryStores}
-            userLocation={userLocation}
-            onSelectStore={setSelectedShop}
-            onVisibleStoresChange={handleVisibleStoresChange}
-          />
         </View>
 
-        <SectionHeader title="Local store list" action={`${listedStores.length} in view`} />
-        {listedStores.length === 0 ? (
-          <EmptyState icon="map-outline" title="No stores in view" body="Zoom out or pan the map to reveal more nearby stores." />
-        ) : (
-          listedStores.map((store, index) => (
-            <StoreCard key={store.id} store={store} index={index + 1} distance={store.distance} onPress={() => setSelectedShop(store)} />
-          ))
-        )}
+        <View style={styles.mapFill}>
+          <NycMap stores={categoryStores} userLocation={userLocation} onSelectStore={setSelectedShop} />
+        </View>
       </View>
     );
   }
@@ -712,9 +690,13 @@ export default function App() {
             </View>
           </View>
 
-          <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
-            {selectedShop ? renderShopDetail(selectedShop) : renderBody()}
-          </ScrollView>
+          {!selectedShop && selectedTab === "map" ? (
+            <View style={styles.content}>{renderMap()}</View>
+          ) : (
+            <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
+              {selectedShop ? renderShopDetail(selectedShop) : renderBody()}
+            </ScrollView>
+          )}
 
           <View style={styles.tabBar}>
             {tabs.map((tab) => {
@@ -887,43 +869,6 @@ function RankedRow({ purchase, rank, score, eyebrow }: { purchase: Purchase; ran
         <Text style={styles.scoreText}>{score}</Text>
       </View>
     </View>
-  );
-}
-
-function StoreCard({ store, index, distance, onPress }: { store: Store; index: number; distance: number; onPress?: () => void }) {
-  const openMaps = () => {
-    const query = encodeURIComponent(`${store.name} ${store.address}`);
-    const url = Platform.OS === "ios" ? `maps:0,0?q=${query}` : `https://www.google.com/maps/search/?api=1&query=${query}`;
-    Linking.openURL(url);
-  };
-
-  return (
-    <Pressable style={styles.storeCard} onPress={onPress}>
-      <View style={styles.storeIndex}>
-        <Text style={styles.storeIndexText}>{index}</Text>
-      </View>
-      <View style={styles.storeContent}>
-        <View style={styles.resultTopRow}>
-          <Text style={styles.resultType}>{CATEGORY_EMOJI[store.category]} {store.category}</Text>
-          <View style={styles.storeMetaRow}>
-            <Ionicons name="star" size={12} color={colors.accent} />
-            <Text style={styles.ratingText}>{store.rating.toFixed(1)}</Text>
-            <Text style={styles.distanceText}>• {distance.toFixed(1)} mi</Text>
-          </View>
-        </View>
-        <Text style={styles.resultTitle}>{store.name}</Text>
-        <Text style={styles.resultSubtitle}>{store.neighborhood}, {store.borough}</Text>
-        <Text style={styles.resultBody}>{store.description}</Text>
-        <View style={styles.tagRow}>
-          {store.tags.map((tag) => (
-            <Text key={tag} style={styles.tag}>{tag}</Text>
-          ))}
-        </View>
-      </View>
-      <Pressable style={styles.directionsButton} onPress={openMaps}>
-        <Ionicons name="arrow-redo-outline" size={17} color={colors.accent} />
-      </Pressable>
-    </Pressable>
   );
 }
 
@@ -1409,13 +1354,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 3,
   },
-  mapHero: {
+  mapScreen: {
+    flex: 1,
+  },
+  mapHeaderCard: {
     backgroundColor: colors.surface,
-    borderRadius: 28,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     gap: 12,
+  },
+  mapFill: {
+    flex: 1,
   },
   mapHeaderRow: {
     flexDirection: "row",
@@ -1473,46 +1425,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: "700",
   },
-  storeCard: {
-    flexDirection: "row",
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 24,
-    padding: 14,
-  },
-  storeIndex: {
-    width: 34,
-    height: 34,
-    borderRadius: 14,
-    backgroundColor: colors.ink,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  storeIndexText: {
-    color: "white",
-    fontWeight: "900",
-  },
-  storeContent: {
-    flex: 1,
-    gap: 4,
-  },
-  storeMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  ratingText: {
-    color: colors.accentDark,
-    fontWeight: "900",
-    fontSize: 12,
-  },
-  distanceText: {
-    color: colors.green,
-    fontWeight: "900",
-    fontSize: 12,
-  },
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1528,14 +1440,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     fontSize: 11,
     fontWeight: "800",
-  },
-  directionsButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 15,
-    backgroundColor: colors.soft2,
-    alignItems: "center",
-    justifyContent: "center",
   },
   profileCard: {
     alignItems: "center",

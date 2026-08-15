@@ -1,7 +1,7 @@
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import React, { useEffect, useMemo } from "react";
-import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
+import React, { useMemo } from "react";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import { StyleSheet, View } from "react-native";
 
 import { colors } from "../theme";
@@ -37,33 +37,7 @@ function storeIcon(store: { photoUri: string; rating: number }) {
   });
 }
 
-function BoundsWatcher({
-  stores,
-  onVisibleStoresChange,
-}: {
-  stores: NycMapProps["stores"];
-  onVisibleStoresChange: NycMapProps["onVisibleStoresChange"];
-}) {
-  const map = useMapEvents({
-    moveend: () => report(),
-    zoomend: () => report(),
-  });
-
-  function report() {
-    const bounds = map.getBounds();
-    const visible = stores.filter((store) => bounds.contains([store.lat, store.lng])).map((store) => store.id);
-    onVisibleStoresChange(visible);
-  }
-
-  useEffect(() => {
-    report();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stores, map]);
-
-  return null;
-}
-
-export default function NycMap({ stores, userLocation, onSelectStore, onVisibleStoresChange }: NycMapProps) {
+export default function NycMap({ stores, userLocation, onSelectStore }: NycMapProps) {
   const center: [number, number] = [userLocation.lat, userLocation.lng];
   const uIcon = useMemo(() => userIcon(), []);
 
@@ -92,7 +66,6 @@ export default function NycMap({ stores, userLocation, onSelectStore, onVisibleS
             eventHandlers={{ click: () => onSelectStore(store) }}
           />
         ))}
-        <BoundsWatcher stores={stores} onVisibleStoresChange={onVisibleStoresChange} />
       </MapContainer>
     </View>
   );
@@ -100,10 +73,6 @@ export default function NycMap({ stores, userLocation, onSelectStore, onVisibleS
 
 const styles = StyleSheet.create({
   wrapper: {
-    height: 320,
-    borderRadius: 26,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
+    flex: 1,
   },
 });

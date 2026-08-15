@@ -62,5 +62,4 @@ export type NycMapProps = {
   stores: (Store & { distance: number })[];
   userLocation: UserLocation;
   onSelectStore: (store: Store) => void;
-  onVisibleStoresChange: (storeIds: string[]) => void;
 };

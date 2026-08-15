@@ -1,16 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect } from "react";
+import React from "react";
 import { Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
 
 import { colors } from "../theme";
 import { NycMapProps } from "../types";
 import { markerPosition } from "../utils/geo";
 
-export default function NycMap({ stores, onSelectStore, onVisibleStoresChange }: NycMapProps) {
-  useEffect(() => {
-    onVisibleStoresChange(stores.map((store) => store.id));
-  }, [stores, onVisibleStoresChange]);
-
+export default function NycMap({ stores, onSelectStore }: NycMapProps) {
   return (
     <View style={styles.map}>
       <View style={styles.gridLineVertical} />
@@ -40,12 +36,9 @@ export default function NycMap({ stores, onSelectStore, onVisibleStoresChange }:
 
 const styles = StyleSheet.create({
   map: {
-    height: 300,
-    borderRadius: 26,
+    flex: 1,
     backgroundColor: colors.greenSoft,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   gridLineVertical: {
     position: "absolute",
