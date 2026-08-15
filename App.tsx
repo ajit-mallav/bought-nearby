@@ -1166,6 +1166,16 @@ function BoughtNearbyApp() {
               <Text style={styles.shopSecondaryActionText}>{isWantedStore ? "Wanted" : "Want"}</Text>
             </Pressable>
           </View>
+          {store.link ? (
+            <>
+              <Pressable style={styles.shopOnlineAction} onPress={() => Linking.openURL(store.link!)}>
+                <Ionicons name="storefront-outline" size={17} color={colors.ink} />
+                <Text style={styles.shopSecondaryActionText}>Shop this store online</Text>
+                <Ionicons name="open-outline" size={15} color={colors.muted} />
+              </Pressable>
+              <Text style={styles.shopCommissionNote}>NearBuy earns a small commission on online orders.</Text>
+            </>
+          ) : null}
           <View style={styles.tagRow}>
             {store.tags.map((tag) => (
               <Text key={tag} style={styles.tag}>{tag}</Text>
@@ -3045,6 +3055,25 @@ const styles = StyleSheet.create({
   shopSecondaryActionText: {
     color: colors.ink,
     fontWeight: "900",
+  },
+  shopOnlineAction: {
+    backgroundColor: colors.soft2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  shopCommissionNote: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: -4,
   },
   tagRow: {
     flexDirection: "row",
