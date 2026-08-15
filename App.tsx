@@ -20,6 +20,7 @@ import {
 } from "react-native";
 
 import NycMap from "./src/components/NycMap";
+import { loadDatabaseState, saveDatabaseState } from "./src/data/database";
 import { CATEGORIES, CATEGORY_EMOJI, friendFeed, starterPurchases, starterRankings, stores } from "./src/data/seed";
 import { colors } from "./src/theme";
 import { Category, ComparisonSession, FeedEvent, Purchase, Store } from "./src/types";
@@ -81,12 +82,22 @@ export default function App() {
     let isMounted = true;
 
     AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => {
-        if (!isMounted || !raw) return;
-        const parsed = JSON.parse(raw) as { purchases?: Purchase[]; rankings?: typeof starterRankings };
-        if (parsed.purchases && parsed.rankings) {
-          setPurchases(parsed.purchases);
-          setRankings(sanitizeRankings(parsed.purchases, parsed.rankings));
+      .then(async (raw) => {
+        if (!isMounted) return;
+
+        const localState = raw
+          ? (JSON.parse(raw) as { purchases?: Purchase[]; rankings?: typeof starterRankings })
+          : null;
+        const databaseState = await loadDatabaseState();
+        const savedState = databaseState ?? localState;
+
+        if (savedState?.purchases && savedState.rankings) {
+          setPurchases(savedState.purchases);
+          setRankings(sanitizeRankings(savedState.purchases, savedState.rankings));
+        }
+
+        if (!databaseState && localState?.purchases && localState.rankings) {
+          await saveDatabaseState({ purchases: localState.purchases, rankings: localState.rankings });
         }
       })
       .catch(() => {
@@ -103,8 +114,12 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ purchases, rankings })).catch(() => {
-      showToast("Could not save this change on device.");
+    const state = { purchases, rankings };
+    Promise.all([
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)),
+      saveDatabaseState(state),
+    ]).catch(() => {
+      showToast("Could not sync this change. It will retry next time.");
     });
   }, [hydrated, purchases, rankings]);
 

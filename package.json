@@ -14,6 +14,7 @@
     "@expo/metro-runtime": "^57.0.8",
     "@expo/vector-icons": "latest",
     "@react-native-async-storage/async-storage": "latest",
+    "@supabase/supabase-js": "^2.112.3",
     "expo": "latest",
     "expo-image-picker": "latest",
     "expo-location": "latest",
@@ -23,6 +24,7 @@
     "react-dom": "latest",
     "react-leaflet": "latest",
     "react-native": "latest",
+    "react-native-url-polyfill": "^4.0.0",
     "react-native-web": "latest"
   },
   "devDependencies": {
