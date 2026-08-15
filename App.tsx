@@ -41,7 +41,7 @@ import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizePurchases, sa
 const STORAGE_KEY = "@bought-nearby:v1";
 const PROFILE_KEY = "@bought-nearby:profile:v1";
 
-type ProfileSection = "bought" | "wants" | "recs";
+type ProfileSection = "bought" | "recs";
 type ProfileInfo = {
   name: string;
   handle: string;
@@ -1198,11 +1198,6 @@ function BoughtNearbyApp() {
             <Text style={styles.moduleValue}>{purchases.length}</Text>
             <Text style={styles.moduleLabel}>Bought</Text>
           </Pressable>
-          <Pressable style={styles.moduleTile} onPress={() => setProfileSection("wants")}>
-            <Ionicons name="bookmark" size={22} color={colors.accentDark} />
-            <Text style={styles.moduleValue}>{wants.length}</Text>
-            <Text style={styles.moduleLabel}>Want to Buy</Text>
-          </Pressable>
           <Pressable style={styles.moduleTile} onPress={() => setProfileSection("recs")}>
             <Ionicons name="heart-circle" size={22} color={colors.accentDark} />
             <Text style={styles.moduleValue}>{recommendedStores.length}</Text>
@@ -1298,7 +1293,7 @@ function BoughtNearbyApp() {
   }
 
   function renderProfileSection(section: ProfileSection) {
-    const titles: Record<ProfileSection, string> = { bought: "Bought", wants: "Want to Buy", recs: "Recs for You" };
+    const titles: Record<ProfileSection, string> = { bought: "Bought", recs: "Recs for You" };
     return (
       <View style={styles.screen}>
         <Pressable style={styles.backRow} onPress={() => setProfileSection(null)}>
@@ -1316,7 +1311,7 @@ function BoughtNearbyApp() {
               return (
                 <View key={category} style={styles.shelfCard}>
                   <View style={styles.shelfHeader}>
-                    <Text style={styles.shelfTitle}>{CATEGORY_EMOJI[category]} {category}</Text>
+                    <Text style={styles.shelfTitle}>{category}</Text>
                     <Text style={styles.shelfCount}>{ranked.length} ranked</Text>
                   </View>
                   {ranked.map((purchase, index) => (
@@ -1330,13 +1325,6 @@ function BoughtNearbyApp() {
             )}
           </>
         )}
-
-        {section === "wants" &&
-          (wants.length === 0 ? (
-            <EmptyState icon="bookmark-outline" title="No wants yet" body="Use Want mode in Log or save stores from the map to build your shopping shortlist." />
-          ) : (
-            wants.map((want) => <WantRow key={want.id} want={want} onBought={() => convertWantToDraft(want)} />)
-          ))}
 
         {section === "recs" &&
           (recommendedStores.length === 0 ? (
