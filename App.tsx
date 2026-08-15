@@ -417,6 +417,7 @@ function BoughtNearbyApp() {
       .slice(0, 10);
     const mostPopular = [...stores].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 10);
     const thriftStores = [...stores].filter((store) => store.isThrift).sort((a, b) => b.rating - a.rating).slice(0, 10);
+    const friendPosts = feedEvents.filter((event) => event.actor !== "You");
 
     return (
       <View style={styles.homeScreen}>
@@ -445,8 +446,8 @@ function BoughtNearbyApp() {
         <FeaturedRow title="Most popular" stores={mostPopular} onSelect={setSelectedShop} />
         <FeaturedRow title="Top thrift stores" stores={thriftStores} onSelect={setSelectedShop} />
 
-        <SectionHeader title="Your Feed" action={`${feedEvents.length} posts`} />
-        {feedEvents.map((event) => (
+        <SectionHeader title="Your Feed" action={`${friendPosts.length} posts`} />
+        {friendPosts.map((event) => (
           <FeedPostCard
             key={event.id}
             event={event}
