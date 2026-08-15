@@ -18,6 +18,14 @@ export const colors = {
   ratingBad: "#D64545",
 };
 
+export const feedColors = {
+  background: "#FFFFFF",
+  ink: "#394F63",
+  teal: "#3BC4B6",
+  tealSoft: "#E4F7F5",
+  border: "#D9E6E9",
+};
+
 export const fonts = {
   regular: "Inter_400Regular",
   medium: "Inter_500Medium",

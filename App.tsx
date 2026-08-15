@@ -31,8 +31,8 @@ import {
 
 import NycMap from "./src/components/NycMap";
 import { loadDatabaseState, saveDatabaseState } from "./src/data/database";
-import { CATEGORIES, CATEGORY_EMOJI, friendFeed, starterPurchases, starterRankings, starterWants, stores } from "./src/data/seed";
-import { colors, fonts } from "./src/theme";
+import { CATEGORIES, friendFeed, starterPurchases, starterRankings, starterWants, stores } from "./src/data/seed";
+import { colors, feedColors, fonts } from "./src/theme";
 import { Category, ComparisonSession, FeedEvent, Purchase, Store, WantedItem } from "./src/types";
 import { distanceMiles } from "./src/utils/geo";
 import { insertAtRank, rankOf, rankedPurchasesForCategory, sanitizePurchases, sanitizeRankings, scoreForRank, scoreOf, topLifetimePurchases } from "./src/utils/ranking";
@@ -422,13 +422,8 @@ function BoughtNearbyApp() {
     return (
       <View style={styles.homeScreen}>
         <View style={styles.homeTopRow}>
-          <View style={styles.brandChip}>
-            <Text style={[styles.brandText, styles.brandTextLarge]}>
-              <Text style={styles.brandNear}>Near</Text>
-              <Text style={styles.brandBuy}>Buy</Text>
-            </Text>
-          </View>
-          <Image source={require("./assets/logo.png")} style={styles.homeLogoImage} resizeMode="contain" />
+          <Text style={styles.homeBrandText}>NearBuy</Text>
+          <Image source={require("./assets/icon-mark.png")} style={styles.homeLogoMark} resizeMode="contain" />
         </View>
 
         <Pressable
@@ -438,7 +433,7 @@ function BoughtNearbyApp() {
             setSelectedTab("search");
           }}
         >
-          <Ionicons name="search-outline" size={20} color={colors.muted} />
+          <Ionicons name="search-outline" size={20} color={feedColors.teal} />
           <Text style={styles.homeSearchText}>Search for a store, member, or item</Text>
         </Pressable>
 
@@ -706,7 +701,7 @@ function BoughtNearbyApp() {
               <View style={styles.resultContent}>
                 <View style={styles.resultTopRow}>
                   <Text style={styles.resultType}>{row.type}</Text>
-                  <Text style={styles.categoryBadge}>{CATEGORY_EMOJI[row.category]} {row.category}</Text>
+                  <Text style={styles.categoryBadge}>{row.category}</Text>
                 </View>
                 <Text style={styles.resultTitle}>{row.title}</Text>
                 <Text style={styles.resultSubtitle}>{row.subtitle}</Text>
@@ -766,7 +761,7 @@ function BoughtNearbyApp() {
         <Image source={{ uri: store.photoUri }} style={styles.shopHeroImage} resizeMode="cover" />
         <View style={styles.card}>
           <View style={styles.resultTopRow}>
-            <Text style={styles.resultType}>{CATEGORY_EMOJI[store.category]} {store.category}</Text>
+            <Text style={styles.resultType}>{store.category}</Text>
             <View style={styles.ratingBadge}>
               <Ionicons name="star" size={13} color={colors.accent} />
               <Text style={styles.ratingBadgeText}>{store.rating.toFixed(1)}</Text>
@@ -862,7 +857,7 @@ function BoughtNearbyApp() {
           return (
             <View key={category} style={styles.shelfCard}>
               <View style={styles.shelfHeader}>
-                <Text style={styles.shelfTitle}>{CATEGORY_EMOJI[category]} {category}</Text>
+                <Text style={styles.shelfTitle}>{category}</Text>
                 <Text style={styles.shelfCount}>{ranked.length} ranked</Text>
               </View>
               {ranked.map((purchase, index) => (
@@ -954,7 +949,7 @@ function BoughtNearbyApp() {
             {!!comparison && !!currentComparisonItem && !!newComparisonItem && (
               <>
                 <View style={styles.compareHandle} />
-                <Text style={styles.cardKicker}>Rank {CATEGORY_EMOJI[comparison.category]} {comparison.category}</Text>
+                <Text style={styles.cardKicker}>Rank {comparison.category}</Text>
                 <Text style={styles.compareTitle}>Which item would you rather have?</Text>
                 <Text style={styles.compareSubtitle}>
                   Tap the item you prefer. Comparison {comparison.comparisons + 1} narrows the shelf using binary insertion.
@@ -1030,7 +1025,7 @@ function FeaturedRow({ title, stores: featuredStores, onSelect }: { title: strin
             <View style={styles.featuredCardMeta}>
               <Text style={styles.featuredPrice}>{"$".repeat(store.priceTier)}</Text>
               <View style={styles.featuredRatingRow}>
-                <Ionicons name="star" size={11} color={colors.accent} />
+                <Ionicons name="star" size={11} color={feedColors.teal} />
                 <Text style={styles.featuredRatingText}>{store.rating.toFixed(1)}</Text>
               </View>
             </View>
@@ -1099,13 +1094,13 @@ function FeedPostCard({
 
       <View style={styles.postActionsRow}>
         <Pressable style={styles.postActionButton} onPress={onToggleLike}>
-          <Ionicons name={liked ? "heart" : "heart-outline"} size={20} color={liked ? colors.ratingBad : colors.muted} />
+          <Ionicons name={liked ? "heart" : "heart-outline"} size={20} color={liked ? colors.ratingBad : feedColors.teal} />
         </Pressable>
         <Pressable style={styles.postActionButton} onPress={onComment}>
-          <Ionicons name="chatbubble-outline" size={19} color={colors.muted} />
+          <Ionicons name="chatbubble-outline" size={19} color={feedColors.teal} />
         </Pressable>
         <Pressable style={styles.postActionButton} onPress={onSend}>
-          <Ionicons name="paper-plane-outline" size={19} color={colors.muted} />
+          <Ionicons name="paper-plane-outline" size={19} color={feedColors.teal} />
         </Pressable>
       </View>
 
@@ -1133,7 +1128,8 @@ function CategoryPicker({
         return (
           <Pressable key={category} style={[styles.categoryPill, active && styles.categoryPillActive]} onPress={() => onSelect(category)}>
             <Text style={[styles.categoryPillText, active && styles.categoryPillTextActive]}>
-              {category === "All" ? "🌎" : CATEGORY_EMOJI[category]} {category}
+              {category === "All" ? "🌎 " : ""}
+              {category}
             </Text>
           </Pressable>
         );
@@ -1142,14 +1138,15 @@ function CategoryPicker({
   );
 }
 
-function PhotoPreview({ uri, category, size }: { uri?: string; category: Category; size: "small" | "medium" | "large" }) {
+function PhotoPreview({ uri, size }: { uri?: string; category: Category; size: "small" | "medium" | "large" }) {
   const dimensions = size === "large" ? styles.photoLarge : size === "medium" ? styles.photoMedium : styles.photoSmall;
+  const iconSize = size === "large" ? 34 : size === "medium" ? 26 : 20;
   if (uri) {
     return <Image source={{ uri }} style={[styles.photoBase, dimensions]} resizeMode="cover" />;
   }
   return (
     <View style={[styles.photoBase, dimensions, styles.photoPlaceholder]}>
-      <Text style={styles.photoEmoji}>{CATEGORY_EMOJI[category]}</Text>
+      <Ionicons name="shirt-outline" size={iconSize} color={colors.muted} />
     </View>
   );
 }
@@ -1359,23 +1356,21 @@ const styles = StyleSheet.create({
   homeScreen: {
     gap: 16,
     paddingTop: 8,
-  },
-  homeHeader: {
-    gap: 14,
+    backgroundColor: feedColors.background,
   },
   homeSearchBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: feedColors.tealSoft,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: feedColors.border,
     borderRadius: 18,
     paddingHorizontal: 15,
     paddingVertical: 14,
   },
   homeSearchText: {
-    color: colors.muted,
+    color: feedColors.ink,
     fontSize: 16,
     fontWeight: "700",
   },
@@ -1384,16 +1379,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  homeLogoImage: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+  homeBrandText: {
+    color: feedColors.ink,
+    fontSize: 26,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+  },
+  homeLogoMark: {
+    height: 48,
+    aspectRatio: 338 / 386,
   },
   featuredSection: {
     gap: 10,
   },
   featuredTitle: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 17,
     fontWeight: "900",
     letterSpacing: -0.2,
@@ -1410,10 +1410,10 @@ const styles = StyleSheet.create({
     width: 140,
     height: 100,
     borderRadius: 16,
-    backgroundColor: colors.soft,
+    backgroundColor: feedColors.tealSoft,
   },
   featuredCardName: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontWeight: "900",
     fontSize: 13,
     marginTop: 4,
@@ -1424,7 +1424,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   featuredPrice: {
-    color: colors.accentDark,
+    color: feedColors.teal,
     fontWeight: "900",
     fontSize: 12,
   },
@@ -1434,14 +1434,14 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   featuredRatingText: {
-    color: colors.muted,
+    color: feedColors.ink,
     fontWeight: "800",
     fontSize: 12,
   },
   postCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: feedColors.background,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: feedColors.border,
     borderRadius: 24,
     padding: 14,
     gap: 10,
@@ -1455,14 +1455,14 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: colors.soft,
+    backgroundColor: feedColors.tealSoft,
   },
   postHeaderText: {
     flex: 1,
     gap: 2,
   },
   postActorLine: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 14,
     fontWeight: "700",
     lineHeight: 19,
@@ -1471,7 +1471,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   postLocation: {
-    color: colors.muted,
+    color: feedColors.teal,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -1487,10 +1487,10 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 110,
     borderRadius: 14,
-    backgroundColor: colors.soft,
+    backgroundColor: feedColors.tealSoft,
   },
   postNotes: {
-    color: colors.ink,
+    color: feedColors.ink,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "600",
@@ -1504,9 +1504,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   postTimestamp: {
-    color: colors.muted,
+    color: feedColors.ink,
     fontSize: 11,
     fontWeight: "700",
+    opacity: 0.6,
   },
   heroCard: {
     backgroundColor: colors.surface,
@@ -1846,9 +1847,6 @@ const styles = StyleSheet.create({
   photoPlaceholder: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  photoEmoji: {
-    fontSize: 30,
   },
   formLabel: {
     color: colors.ink,

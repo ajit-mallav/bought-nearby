@@ -2,10 +2,6 @@ import { Category, FeedEvent, Purchase, RankingMap, Store, WantedItem } from "..
 
 export const CATEGORIES: Category[] = ["Clothing"];
 
-export const CATEGORY_EMOJI: Record<Category, string> = {
-  Clothing: "🧥",
-};
-
 export const emptyRankings = (): RankingMap => ({
   Clothing: [],
 });
