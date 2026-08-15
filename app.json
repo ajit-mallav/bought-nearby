@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Bought Nearby",
+    "slug": "bought-nearby",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "boughtnearby",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FFF8EF"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ajitmallav.boughtnearby",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Bought Nearby lets you add item photos to purchase logs.",
+        "NSPhotoLibraryUsageDescription": "Bought Nearby lets you choose item photos for purchase logs.",
+        "NSLocationWhenInUseUsageDescription": "Bought Nearby uses your location to show nearby local stores."
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
+  }
+}
