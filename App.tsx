@@ -1203,6 +1203,18 @@ function BoughtNearbyApp() {
             <Text style={styles.filterButtonText} numberOfLines={1}>{searchMinRating === null ? "Rating" : `>${searchMinRating.toFixed(1)}`}</Text>
             <Ionicons name="chevron-down" size={14} color={colors.ink} />
           </Pressable>
+          {(searchStyle !== "All" || searchPriceTiers.size > 0 || searchMinRating !== null) && (
+            <Pressable
+              style={styles.filterClearButton}
+              onPress={() => {
+                setSearchStyle("All");
+                setSearchPriceTiers(new Set());
+                setSearchMinRating(null);
+              }}
+            >
+              <Text style={styles.filterClearButtonText}>Clear</Text>
+            </Pressable>
+          )}
         </View>
 
         <Modal visible={activeSearchFilter !== null} transparent animationType="fade" onRequestClose={() => setActiveSearchFilter(null)}>
@@ -3154,6 +3166,17 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.ink,
     fontWeight: "800",
+    fontSize: 13,
+  },
+  filterClearButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: layout.touchTarget,
+    paddingHorizontal: 12,
+  },
+  filterClearButtonText: {
+    color: colors.accent,
+    fontWeight: "900",
     fontSize: 13,
   },
   filterModalBackdrop: {
