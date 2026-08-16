@@ -12,7 +12,7 @@ An iPhone-first Expo app prototype for discovering local NYC clothing purchases 
 - **Beli-style score** from rank position; users do not manually enter a 0–10 score.
 - **Feed** with friend activity such as “Sarah ranked a cropped trench coat #2.”
 - **Profile shelves** with a top-10 ranked shelf, lifetime “worth it” list, and want-to-buy list.
-- **Search** across your purchases, wants, friend activity, and local clothing stores.
+- **Search** across your purchases, wants, friend activity, and local clothing stores, with dropdown filters for store type (vintage/thrift/boutique/consignment), cost, and minimum rating.
 - **Nearby map** with a real, zoomable Leaflet map of the 5 boroughs, seeded NYC clothing stores with ratings that populate as you pan/zoom, distance sorting, optional location permission, and a shop detail page with directions, Want/Log actions, and a feed of what's been bought there.
 - **Supabase persistence** with per-user row-level security and local offline fallback.
 
