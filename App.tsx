@@ -1282,7 +1282,7 @@ function BoughtNearbyApp() {
           <Text style={styles.searchCountText}>{rows.length} {rows.length === 1 ? "result" : "results"}</Text>
         </View>
         {rows.length === 0 ? (
-          <EmptyState icon="search-outline" title="No matches yet" body="Try another category or log a purchase to build your searchable shelves." />
+          <EmptyState icon="search-outline" title="No matches yet" body="Try adjusting your filters or log a purchase to build your searchable shelves." />
         ) : (
           <View style={styles.searchResultsList}>
             {rows.map((row, index) => (
