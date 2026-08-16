@@ -782,7 +782,9 @@ function BoughtNearbyApp() {
     return (
       <View style={styles.homeScreen}>
         <View style={styles.homeTopRow}>
-          <Image source={require("./assets/logo-horizontal.png")} style={styles.homeLogoHorizontal} resizeMode="contain" />
+          <Pressable accessibilityRole="button" accessibilityLabel="Go to home feed" onPress={goHome} hitSlop={8}>
+            <Image source={require("./assets/logo-horizontal.png")} style={styles.homeLogoHorizontal} resizeMode="contain" />
+          </Pressable>
         </View>
 
         <Animated.View style={[styles.homeSearchBar, homeSearchActive && styles.homeSearchBarActive, { transform: [{ scale: homeSearchScale }] }]}>
@@ -847,6 +849,11 @@ function BoughtNearbyApp() {
   function openStoreByName(name: string) {
     const match = stores.find((store) => store.name.toLowerCase() === name.toLowerCase());
     if (match) setSelectedShop(match);
+  }
+
+  function goHome() {
+    setSelectedShop(null);
+    setSelectedTab("feed");
   }
 
   function saveStoreWant(store: Store) {
@@ -1166,7 +1173,9 @@ function BoughtNearbyApp() {
             <Text style={styles.searchEyebrow}>Discover</Text>
             <Text style={styles.searchPageTitle}>Find something nearby</Text>
           </View>
-          <Image source={require("./assets/icon-mark.png")} style={styles.searchLogoMark} resizeMode="contain" />
+          <Pressable accessibilityRole="button" accessibilityLabel="Go to home feed" onPress={goHome}>
+            <Image source={require("./assets/icon-mark.png")} style={styles.searchLogoMark} resizeMode="contain" />
+          </Pressable>
         </View>
 
         <View style={styles.searchBarActive}>
@@ -1437,7 +1446,9 @@ function BoughtNearbyApp() {
     return (
       <View style={styles.homeScreen}>
         <View style={styles.homeTopRow}>
-          <Image source={require("./assets/logo-horizontal.png")} style={styles.homeLogoHorizontal} resizeMode="contain" />
+          <Pressable accessibilityRole="button" accessibilityLabel="Go to home feed" onPress={goHome} hitSlop={8}>
+            <Image source={require("./assets/logo-horizontal.png")} style={styles.homeLogoHorizontal} resizeMode="contain" />
+          </Pressable>
           <Pressable style={[styles.profileMenuButton, styles.profileMenuButtonFloating]} onPress={() => setProfileMenuVisible(true)} hitSlop={8}>
             <Ionicons name="ellipsis-horizontal" size={20} color={feedColors.ink} />
           </Pressable>
@@ -1681,9 +1692,9 @@ function BoughtNearbyApp() {
                   <Text style={styles.appContext} numberOfLines={1}>{selectedShop.name}</Text>
                 </Pressable>
               ) : selectedTab === "add" || selectedTab === "search" || selectedTab === "map" ? (
-                <View style={styles.topBarLogoWrap}>
+                <Pressable style={styles.topBarLogoWrap} accessibilityRole="button" accessibilityLabel="Go to home feed" onPress={goHome}>
                   <Image source={require("./assets/logo-horizontal.png")} style={styles.topBarLogo} resizeMode="contain" />
-                </View>
+                </Pressable>
               ) : (
                 <View>
                   <BrandMark />
